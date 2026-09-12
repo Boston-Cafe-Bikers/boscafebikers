@@ -1,27 +1,7 @@
 {
-  "updated_at": "2026-09-10T15:06:55.178231-04:00",
-  "count": 5,
+  "updated_at": "2026-09-12T16:07:13.894868-04:00",
+  "count": 4,
   "events": [
-    {
-      "uid": "vv38L3uTZhc7m7zo21PL",
-      "title": "Urban Agricultural Fair Ride",
-      "start": "2026-09-12T11:00:00-04:00",
-      "end": null,
-      "date_display": "Saturday, September 12",
-      "time_display": "11:00 am",
-      "location": null,
-      "location_hidden": false,
-      "location_url": null,
-      "description": "Boston Café bikers is hosting a ride to the Urban Agricultural and Climate Fair hosted by Boston Community Gardens and The Trustees! Meet us at either meeting point in Allston or Central Square at 11 AM and ride with us to the event!! I hear there’ll be free food and a harvest competition???",
-      "rsvp_url": "https://partiful.com/e/vv38L3uTZhc7m7zo21PL",
-      "image": "https://firebasestorage.googleapis.com/v0/b/getpartiful.appspot.com/o/external%2Fuser%2FHs47uq5mucZyXLBJZCda%2FC2eqpntPqYh3Y-d4zlVHD?alt=media&token=54ada378-48e2-4087-a4c7-a594d877cffd",
-      "routes": [],
-      "grace_until": "2026-09-12T12:00:00-04:00",
-      "place_name": null,
-      "address": null,
-      "year": "2026",
-      "poster": "posters/vv38L3uTZhc7m7zo21PL.jpg"
-    },
     {
       "uid": "Pk8PEGpxf96QnRTFX5q4",
       "title": "Cuckoo for Kicco Coffee",
