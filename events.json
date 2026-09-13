@@ -1,26 +1,7 @@
 {
-  "updated_at": "2026-09-12T16:07:13.894868-04:00",
-  "count": 4,
+  "updated_at": "2026-09-13T16:14:21.928188-04:00",
+  "count": 3,
   "events": [
-    {
-      "uid": "Pk8PEGpxf96QnRTFX5q4",
-      "title": "Cuckoo for Kicco Coffee",
-      "start": "2026-09-13T11:00:00-04:00",
-      "end": null,
-      "date_display": "Sunday, September 13",
-      "time_display": "11:00 am",
-      "location": null,
-      "location_hidden": false,
-      "location_url": "https://maps.app.goo.gl/85kT8TVkYWkciRTF9?g_st=ic",
-      "description": "Idk about you but I’m Cuckoo for Kicco Coffee 😎\n\nLet’s ride from Somerville down the community path to Kicco coffee in North Station, where they’ll be ready with the discount for us if you RSVP￼🥳🥳!!!",
-      "rsvp_url": "https://partiful.com/e/Pk8PEGpxf96QnRTFX5q4",
-      "image": "https://media2.giphy.com/media/RxvVSy4aI47TO/giphy.gif?cid=c00e53c69z7kbg9sp1m54cth58qnp289ucng3v1rjxamjv6s&ep=v1_gifs_search&rid=giphy.gif&ct=g",
-      "routes": [],
-      "grace_until": "2026-09-13T12:00:00-04:00",
-      "place_name": null,
-      "address": null,
-      "year": "2026"
-    },
     {
       "uid": "QEVwg0dzu9q53uZmusrF",
       "title": "Broadway Bound",

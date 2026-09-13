@@ -25,20 +25,8 @@ RRULE:FREQ=YEARLY;BYMONTH=11;BYDAY=1SU
 END:STANDARD
 END:VTIMEZONE
 BEGIN:VEVENT
-UID:Pk8PEGpxf96QnRTFX5q4
-DTSTAMP:20260912T200713Z
-DTSTART;TZID=America/New_York:20260913T110000
-SUMMARY:Cuckoo for Kicco Coffee
-DESCRIPTION:Idk about you but I’m Cuckoo for Kicco Coffee 😎\n\nLet’s
-  ride from Somerville down the community path to Kicco coffee in North Sta
- tion\, where they’ll be ready with the discount for us if you RSVP￼
- 🥳🥳!!!\n\nMeeting point: https://maps.app.goo.gl/85kT8TVkYWkciRTF9?g_
- st=ic\n\nRSVP: https://partiful.com/e/Pk8PEGpxf96QnRTFX5q4
-URL:https://partiful.com/e/Pk8PEGpxf96QnRTFX5q4
-END:VEVENT
-BEGIN:VEVENT
 UID:QEVwg0dzu9q53uZmusrF
-DTSTAMP:20260912T200713Z
+DTSTAMP:20260913T201421Z
 DTSTART;TZID=America/New_York:20260920T110000
 SUMMARY:Broadway Bound
 DESCRIPTION:Sadly we’re not riding to the theatre\, but you will get to s
@@ -51,7 +39,7 @@ URL:https://partiful.com/e/QEVwg0dzu9q53uZmusrF
 END:VEVENT
 BEGIN:VEVENT
 UID:AU6ZZDL8Ao8fgsHlMbYJ
-DTSTAMP:20260912T200713Z
+DTSTAMP:20260913T201421Z
 DTSTART;TZID=America/New_York:20260926T110000
 SUMMARY:Dazed at Dudley Cafe
 DESCRIPTION:If you go too hard on Friday night you’re gonna be dazed when
@@ -63,7 +51,7 @@ URL:https://partiful.com/e/AU6ZZDL8Ao8fgsHlMbYJ
 END:VEVENT
 BEGIN:VEVENT
 UID:V8yrXesgubVmuTgHoWYc
-DTSTAMP:20260912T200713Z
+DTSTAMP:20260913T201421Z
 DTSTART;TZID=America/New_York:20260927T170000
 SUMMARY:Sunday Scaries Picnic
 LOCATION:Somerville Junction Park\, 3 Woodbine St\, Somerville\, MA
