@@ -290,6 +290,70 @@ def test_every_subscribe_link_points_at_the_one_feed():
     assert f"<code>{RIDES_ICS_URL}</code>" in text
 
 
+# --- photo credits on the gallery -------------------------------------------
+# Every gallery photo was taken by a rider and shared with the group, and the
+# tile must say who (issue #10). The filename is the source of truth:
+# images/<first>-<initial>-<subject>.jpeg → "Photo: First I." in the caption.
+
+GALLERY_FILE_RE = re.compile(r"^images/([a-z]+)-([a-z])-[a-z0-9-]+\.(?:jpe?g|png|webp)$")
+
+
+class GalleryParser(HTMLParser):
+    """Each .gallery-item figure as {src, credit}."""
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.figures: list[dict] = []
+        self._figure: dict | None = None
+        self._in_credit = False
+
+    def handle_starttag(self, tag, attrs):
+        seen = dict(attrs)
+        classes = (seen.get("class") or "").split()
+        if tag == "figure" and "gallery-item" in classes:
+            self._figure = {"src": None, "credit": ""}
+        elif self._figure is not None and tag == "img":
+            self._figure["src"] = seen.get("src")
+        elif self._figure is not None and "credit" in classes:
+            self._in_credit = True
+
+    def handle_endtag(self, tag):
+        if self._in_credit and tag == "span":
+            self._in_credit = False
+        elif tag == "figure" and self._figure is not None:
+            self._figure["credit"] = " ".join(self._figure["credit"].split())
+            self.figures.append(self._figure)
+            self._figure = None
+
+    def handle_data(self, data):
+        if self._in_credit:
+            self._figure["credit"] += data
+
+
+def gallery_figures() -> list[dict]:
+    parser = GalleryParser()
+    parser.feed((SITE / "gallery.html").read_text(encoding="utf-8"))
+    parser.close()
+    return parser.figures
+
+
+def test_every_gallery_photo_is_credited():
+    figures = gallery_figures()
+    assert figures, "the gallery has tiles"
+    for figure in figures:
+        assert figure["credit"].startswith("Photo: "), f"{figure['src']} has no credit"
+
+
+def test_each_gallery_credit_matches_its_filename():
+    """The credit is the photographer the filename names — nothing else."""
+    for figure in gallery_figures():
+        match = GALLERY_FILE_RE.match(figure["src"] or "")
+        assert match, f"{figure['src']!r} is not named <first>-<initial>-<subject>"
+        first, initial = match.groups()
+        expected = f"Photo: {first.capitalize()} {initial.upper()}."
+        assert figure["credit"] == expected, (figure["src"], figure["credit"])
+
+
 def test_stylesheet_has_no_root_relative_urls():
     css = (SITE / "styles.css").read_text(encoding="utf-8")
     assert re.search(r"url\(\s*['\"]?/", css) is None

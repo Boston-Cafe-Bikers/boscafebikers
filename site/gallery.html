@@ -58,6 +58,16 @@
       color: var(--muted);
     }
 
+    /* Photo credit: its own line under the caption, a step smaller. Every
+       photo here was taken by a rider and shared with the group, so each
+       tile names who took it (issue #10). */
+    .gallery-item .credit {
+      display: block;
+      margin-top: 3px;
+      font-size: .72rem;
+      letter-spacing: .02em;
+    }
+
     /* The section CTA button needs breathing room from the grid above. */
     .btn {
       margin-top: 1rem;
@@ -91,32 +101,48 @@
       <div class="wrap">
         <h2 id="gallery-heading">From the rides</h2>
         <p class="lede">Rollouts, regroup points, and the coffee at the end. Photos
-          from group rides land here — check Instagram for the latest in the
-          meantime.</p>
+          from group rides land here, each credited to the rider who took it —
+          check Instagram for the latest in the meantime.</p>
 
+        <!-- Photo credits. Each file in images/ is named
+           <photographer>-<subject>.jpeg, and the .credit line under its
+           caption names that photographer (first name and last initial, as the
+           filename spells them). A new photo needs both: the file named for
+           who took it, and the credit in its figcaption —
+           tests/test_site_html.py fails a gallery tile without one. -->
         <div class="gallery-grid">
           <figure class="gallery-item">
             <img src="images/aman-s-group-preride-fenway.jpeg" alt="Group of cyclists gathered for a preride at Fenway"
               loading="lazy">
-            <figcaption>Group preride at Fenway</figcaption>
+            <figcaption>Group preride at Fenway
+              <span class="credit">Photo: Aman S.</span>
+            </figcaption>
           </figure>
           <figure class="gallery-item">
             <img src="images/aman-s-group-speedway.jpeg" alt="Boston Café Bikers group rolling at the Speedway"
               loading="lazy">
-            <figcaption>Group ride at the Speedway</figcaption>
+            <figcaption>Group ride at the Speedway
+              <span class="credit">Photo: Aman S.</span>
+            </figcaption>
           </figure>
           <figure class="gallery-item">
             <img src="images/jack-t-freshpond-midride.jpeg" alt="Riders mid-ride by Fresh Pond" loading="lazy">
-            <figcaption>Fresh Pond, mid-ride</figcaption>
+            <figcaption>Fresh Pond, mid-ride
+              <span class="credit">Photo: Jack T.</span>
+            </figcaption>
           </figure>
           <figure class="gallery-item">
             <img src="images/jack-t-midride-putnamave.jpeg" alt="Riders mid-ride on Putnam Avenue" loading="lazy">
-            <figcaption>Mid-ride on Putnam Ave</figcaption>
+            <figcaption>Mid-ride on Putnam Ave
+              <span class="credit">Photo: Jack T.</span>
+            </figcaption>
           </figure>
           <figure class="gallery-item">
             <img src="images/mike-r-midride-helmet.jpeg" alt="Rider wearing a helmet mid-ride" loading="lazy"
               class="crop-riders">
-            <figcaption>Mid-ride helmet shot</figcaption>
+            <figcaption>Mid-ride helmet shot
+              <span class="credit">Photo: Mike R.</span>
+            </figcaption>
           </figure>
         </div>
 
