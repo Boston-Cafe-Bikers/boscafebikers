@@ -822,18 +822,27 @@
         <!-- Subscribe to the whole schedule, rather than adding rides one at a
            time from their cards. rides.ics is re-exported by the sync
            (scripts/export_ics.py), so a subscribed calendar picks up new rides
-           on its own. The href is relative — the site is served from the
-           /boscafebikers/ subpath, so a leading slash would 404 — but the
-           absolute URL is spelled out below because pasting it is how Google
-           Calendar and Outlook subscribe. webcal:// is kept alongside it
+           on its own. The first href is relative — the site is served from a
+           subpath under /preview/ too, so a leading slash would 404 — but the
+           absolute URL is spelled out below because pasting it is how Outlook
+           (and anything else) subscribes. webcal:// is kept alongside it
            because it is the only thing that makes Apple Calendar *subscribe*
-           instead of importing a frozen copy. -->
+           instead of importing a frozen copy.
+
+           Google Calendar has no webcal handler, but its "add calendar from
+           URL" screen can be deep-linked: calendar.google.com/calendar/r?cid=
+           takes the feed URL and opens the subscribe dialog with it filled in
+           (issue #6). It is a link to Google, so it opens in a new tab like the
+           per-ride "Google Calendar" export. tests/test_site_html.py pins the
+           cid to the same feed URL the note prints. -->
         <div class="subscribe ride-actions">
           <a class="btn btn-ghost" href="rides.ics">Subscribe in your calendar app</a>
+          <a class="btn btn-ghost" href="https://calendar.google.com/calendar/r?cid=webcal%3A%2F%2Fcafebikers.org%2Frides.ics"
+            target="_blank" rel="noopener" aria-label="Subscribe in Google Calendar">Google Calendar</a>
           <a class="btn btn-ghost" href="webcal://cafebikers.org/rides.ics"
             aria-label="Subscribe in Apple Calendar">Apple Calendar</a>
         </div>
-        <p class="note" id="subscribe-note">…or paste this link into Google Calendar or Outlook as a
+        <p class="note" id="subscribe-note">…or paste this link into Outlook or any other calendar app as a
           subscription: <code>https://cafebikers.org/rides.ics</code></p>
       </div>
     </section>

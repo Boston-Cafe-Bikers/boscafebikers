@@ -29,6 +29,7 @@ from __future__ import annotations
 import re
 from html.parser import HTMLParser
 from pathlib import Path
+from urllib.parse import unquote
 
 import pytest
 
@@ -216,6 +217,77 @@ def test_the_cdn_subresources_are_version_pinned():
             if "@" not in url.rsplit("/", 1)[0]:
                 unpinned.append(f"{path.name} line {line}: {url}")
     assert unpinned == [], "CDN URLs without a pinned version:\n  " + "\n  ".join(unpinned)
+
+
+# --- the subscribe row on the rides page ------------------------------------
+# The public feed has one URL; every way of subscribing to it on the page has to
+# point at that same feed. The Google Calendar button is the one that is easy
+# to get subtly wrong: it is a deep link into Google's "add calendar from URL"
+# screen, and the feed URL travels inside its `cid` query parameter.
+
+RIDES_ICS_URL = "https://cafebikers.org/rides.ics"
+WEBCAL_URL = "webcal://cafebikers.org/rides.ics"
+GOOGLE_SUBSCRIBE_PREFIX = "https://calendar.google.com/calendar/r?cid="
+
+
+class AnchorParser(HTMLParser):
+    """Every <a> on a page, as (attrs, text), plus the class of its parent."""
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self._open: list[dict] | None = None
+        self._parents: list[str] = []
+        self.anchors: list[dict] = []
+
+    def handle_starttag(self, tag, attrs):
+        seen = dict(attrs)
+        if tag == "a":
+            self._open = {"attrs": seen, "text": "", "parent": " ".join(self._parents)}
+        if tag not in VOID_ELEMENTS:
+            self._parents.append(seen.get("class") or "")
+
+    def handle_endtag(self, tag):
+        if tag not in VOID_ELEMENTS and self._parents:
+            self._parents.pop()
+        if tag == "a" and self._open is not None:
+            self._open["text"] = " ".join(self._open["text"].split())
+            self.anchors.append(self._open)
+            self._open = None
+
+    def handle_data(self, data):
+        if self._open is not None:
+            self._open["text"] += data
+
+
+def subscribe_links() -> list[dict]:
+    parser = AnchorParser()
+    parser.feed((SITE / "index.html").read_text(encoding="utf-8"))
+    parser.close()
+    return [a for a in parser.anchors if "subscribe" in a["parent"].split()]
+
+
+def test_the_subscribe_row_offers_google_calendar():
+    """A one-click subscribe for Google, not just a URL to paste (issue #6)."""
+    google = [a for a in subscribe_links() if a["text"] == "Google Calendar"]
+    assert len(google) == 1, "exactly one Google Calendar button in the subscribe row"
+    href = google[0]["attrs"]["href"]
+    assert href.startswith(GOOGLE_SUBSCRIBE_PREFIX)
+    cid = unquote(href[len(GOOGLE_SUBSCRIBE_PREFIX):])
+    assert cid == WEBCAL_URL, "the cid must be the feed URL Apple Calendar subscribes to"
+    # A link off-site opens a new tab, like the per-ride Google export does.
+    assert google[0]["attrs"].get("target") == "_blank"
+    assert "noopener" in (google[0]["attrs"].get("rel") or "")
+
+
+def test_every_subscribe_link_points_at_the_one_feed():
+    links = subscribe_links()
+    assert len(links) == 3, [a["text"] for a in links]
+    hrefs = {a["attrs"]["href"] for a in links}
+    assert "rides.ics" in hrefs, "the relative .ics download"
+    assert WEBCAL_URL in hrefs, "the Apple Calendar webcal:// link"
+    # The pasteable URL in the note beneath the row is the https form.
+    text = (SITE / "index.html").read_text(encoding="utf-8")
+    assert f"<code>{RIDES_ICS_URL}</code>" in text
 
 
 def test_stylesheet_has_no_root_relative_urls():

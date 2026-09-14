@@ -105,7 +105,7 @@ drops it everywhere, including from `events-past.json` if it was
 already archived. Deleting it from that file by hand doesn't stick: the sync
 would archive it again from the feed.
 
-The sync also re-exports every upcoming ride as a public calendar feed at `rides.ics` — subscribe to <https://cafebikers.org/rides.ics> (or the `webcal://` form in Apple Calendar) and new rides appear on their own.
+The sync also re-exports every upcoming ride as a public calendar feed at `rides.ics` — subscribe to <https://cafebikers.org/rides.ics> (or the `webcal://` form in Apple Calendar) and new rides appear on their own. The rides page offers it three ways: the `.ics` link, a Google Calendar button (a deep link into Google's "add calendar from URL" screen with the feed filled in), and the `webcal://` link for Apple Calendar.
 
 ### The `data` branch
 
