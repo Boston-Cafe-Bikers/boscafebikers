@@ -23,6 +23,7 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT / "scripts"))
 
+import backfill_events  # noqa: E402
 import fetch_rides  # noqa: E402
 import geocode_cafes  # noqa: E402
 import render_route_maps  # noqa: E402
@@ -314,19 +315,19 @@ def test_the_calendar_is_byte_stable_though_updated_at_moves(data_dir):
 
 
 MAPS_AFTER_PROMOTE = ordered(
-    "fetch", "archive", "enrich_archive", "posters", "geocode", "promote", "maps",
+    "fetch", "backfill", "archive", "enrich_archive", "posters", "geocode", "promote", "maps",
     "export_ics",
 )
 ICS_BEFORE_PROMOTE = ordered(
-    "fetch", "archive", "enrich_archive", "posters", "geocode", "maps", "export_ics",
+    "fetch", "backfill", "archive", "enrich_archive", "posters", "geocode", "maps", "export_ics",
     "promote",
 )
 ARCHIVE_AFTER_PROMOTE = ordered(
-    "fetch", "promote", "archive", "enrich_archive", "posters", "geocode", "maps",
+    "fetch", "backfill", "promote", "archive", "enrich_archive", "posters", "geocode", "maps",
     "export_ics",
 )
 POSTERS_AFTER_PROMOTE = ordered(
-    "fetch", "archive", "enrich_archive", "geocode", "maps", "promote", "posters",
+    "fetch", "backfill", "archive", "enrich_archive", "geocode", "maps", "promote", "posters",
     "export_ics",
 )
 
@@ -573,11 +574,13 @@ def test_every_published_path_derives_from_the_data_dir(tmp_path):
     # The sidecars are code, not data: they stay in scripts/.
     assert cfg.ride_images == fetch_rides.RIDE_IMAGES_PATH
     assert cfg.excluded_events == fetch_rides.EXCLUDED_EVENTS_PATH
+    assert cfg.backfill_events == backfill_events.BACKFILL_EVENTS_PATH
 
 
 def test_the_step_list_is_the_documented_pipeline():
     assert [name for name, _ in sync.STEPS] == [
         "fetch",
+        "backfill",
         "archive",
         "enrich_archive",
         "posters",
@@ -586,6 +589,296 @@ def test_the_step_list_is_the_documented_pipeline():
         "promote",
         "export_ics",
     ]
+
+
+# --- the backfill list -----------------------------------------------------
+#
+# Rides the feed never carried, listed by id in scripts/backfill_events.json
+# and fetched from their public event pages through the same fetch_page seam
+# as enrichment. The stub below serves pages by URL — the fixture page to every
+# fed ride, something else to a listed one — so one run can do both.
+
+BACKFILL_UID = "BackfillRide0001"
+# Well before NOW and in daylight time, so the offset in the record is -04:00.
+PAST_START = datetime(2025, 10, 5, 10, 0, tzinfo=EASTERN)
+
+
+def event_url(uid: str) -> str:
+    return f"https://partiful.com/e/{uid}"
+
+
+def backfill_page(uid: str, start: datetime, title: str = "Powder House to Intelligentsia") -> str:
+    """A Partiful event page for a ride that was never in the feed."""
+    event = {
+        "id": uid,
+        "title": title,
+        "status": "PUBLISHED",
+        "startDate": start.astimezone(ZoneInfo("UTC")).strftime("%Y-%m-%dT%H:%M:%S.000Z"),
+        "endDate": None,
+        "timezone": "America/New_York",
+        "location": "Intelligentsia Coffee, 810 Boylston St, Boston, MA",
+        "description": "Powder House Square to the Back Bay.\n\n\nCoffee at the end.",
+        "image": {
+            "url": "https://firebasestorage.googleapis.com/v0/b/getpartiful.appspot.com/o/rides%2Fpowder-house.jpg?alt=media"
+        },
+        "customFields": [
+            {"icon": "link", "value": "Estimated Route", "url": "https://maps.app.goo.gl/RouteShortLink1?g_st=ic"},
+        ],
+    }
+    return (
+        '<script id="__NEXT_DATA__" type="application/json">'
+        + json.dumps({"props": {"pageProps": {"event": event}}})
+        + "</script>"
+    )
+
+
+def backfill_list(tmp_path: Path, *uids: str) -> Path:
+    path = tmp_path / "backfill_events.json"
+    path.write_text(
+        json.dumps({uid: "a ride from before the sync existed" for uid in uids}),
+        encoding="utf-8",
+    )
+    return path
+
+
+def paged(pages: dict, calls: list = None):
+    """A fetch_page stub: the given pages by URL, the fixture page otherwise.
+
+    A value that is an exception is raised, which is what an unreachable or
+    deleted event page looks like to the sync.
+    """
+
+    def fetch(url):
+        if calls is not None:
+            calls.append(url)
+        if url in pages:
+            page = pages[url]
+            if isinstance(page, Exception):
+                raise page
+            return page
+        return EVENT_PAGE
+
+    return fetch
+
+
+def backfill_notices(state: sync.Run) -> list:
+    return [message for _level, message in state.report.warnings() if "backfill" in message]
+
+
+def test_a_listed_ride_the_feed_never_had_is_archived_from_its_page(data_dir, tmp_path):
+    calls = []
+    pages = {event_url(BACKFILL_UID): backfill_page(BACKFILL_UID, PAST_START)}
+    state = sync.run(
+        config(data_dir, backfill_events=backfill_list(tmp_path, BACKFILL_UID)),
+        **{**SEAMS, "fetch_page": paged(pages, calls)},
+    )
+
+    archived = {ride["uid"]: ride for ride in payload_of(data_dir / "events-past.json")["events"]}
+    ride = archived[BACKFILL_UID]
+    assert ride["title"] == "Powder House to Intelligentsia"
+    assert ride["start"] == "2025-10-05T10:00:00-04:00"
+    assert ride["date_display"] == "Sunday, October 5"
+    assert ride["time_display"] == "10:00 am"
+    assert ride["location"] == "Intelligentsia Coffee, 810 Boylston St, Boston, MA"
+    assert ride["place_name"] == "Intelligentsia Coffee"
+    assert ride["description"] == "Powder House Square to the Back Bay.\n\nCoffee at the end."
+    assert ride["rsvp_url"] == event_url(BACKFILL_UID)
+    assert ride["grace_until"] == "2025-10-05T11:00:00-04:00"
+    # Enriched on arrival, through the same seams as a fed ride.
+    assert ride["image"].startswith("https://firebasestorage.googleapis.com/")
+    assert [route["label"] for route in ride["routes"]] == ["Estimated Route"]
+    assert ride["routes"][0]["distance_m"] == 1000
+    assert ride["routes"][0]["start_name"] == "Cleveland Circle"
+    # …so it never joins the never-checked queue.
+    assert state.report.archive_unchecked == 0
+
+    assert calls.count(event_url(BACKFILL_UID)) == 1, "one fetch, no more"
+    # The upcoming list is the feed's alone.
+    assert uids(data_dir / "events.json") == {ride["uid"] for ride in feed_rides()}
+    assert state.report.backfill_listed == 1
+    assert state.report.backfill_fetched == 1
+    assert state.report.backfill_queued == 0
+    assert backfill_notices(state) == []
+
+
+def test_a_backfilled_ride_is_placed_on_the_cafe_map_and_gets_a_route_map(data_dir, tmp_path):
+    pages = {event_url(BACKFILL_UID): backfill_page(BACKFILL_UID, PAST_START)}
+    sync.run(
+        config(data_dir, backfill_events=backfill_list(tmp_path, BACKFILL_UID)),
+        **{**SEAMS, "fetch_page": paged(pages)},
+    )
+    cafes = payload_of(data_dir / "cafe-points.json")
+    assert any("Intelligentsia" in str(point) for point in cafes.get("points", cafes)), cafes
+    assert (data_dir / "maps" / f"{BACKFILL_UID}.svg").exists()
+
+
+def test_the_second_run_fetches_nothing_and_writes_nothing(data_dir, tmp_path):
+    pages = {event_url(BACKFILL_UID): backfill_page(BACKFILL_UID, PAST_START)}
+    listed = backfill_list(tmp_path, BACKFILL_UID)
+    sync.run(config(data_dir, backfill_events=listed), **{**SEAMS, "fetch_page": paged(pages)})
+    before = snapshot(data_dir)
+
+    calls = []
+    state = sync.run(
+        config(data_dir, now=LATER, backfill_events=listed),
+        **{**SEAMS, "fetch_page": paged(pages, calls)},
+    )
+    assert event_url(BACKFILL_UID) not in calls, "an archived id is never fetched again"
+    assert snapshot(data_dir) == before
+    assert state.files.changed() == []
+    assert state.report.backfill_fetched == 0
+    assert state.report.backfill_queued == 0
+    assert backfill_notices(state) == []
+
+
+def test_an_upcoming_listed_ride_waits_for_its_grace_hour(data_dir, tmp_path):
+    start = NOW + timedelta(days=2)
+    pages = {event_url(BACKFILL_UID): backfill_page(BACKFILL_UID, start)}
+    listed = backfill_list(tmp_path, BACKFILL_UID)
+
+    state = sync.run(config(data_dir, backfill_events=listed), **{**SEAMS, "fetch_page": paged(pages)})
+    assert BACKFILL_UID not in uids(data_dir / "events-past.json")
+    assert BACKFILL_UID not in uids(data_dir / "events.json"), "the upcoming list is the feed's"
+    assert state.report.backfill_fetched == 1
+    assert state.report.backfill_queued == 1
+    assert backfill_notices(state) == [], "waiting is not a problem"
+
+    # Two hours after it started — past the grace hour — it lands.
+    state = sync.run(
+        config(data_dir, now=start + timedelta(hours=2), backfill_events=listed),
+        **{**SEAMS, "fetch_page": paged(pages)},
+    )
+    assert BACKFILL_UID in uids(data_dir / "events-past.json")
+    assert state.report.backfill_queued == 0
+
+
+def test_an_unreadable_page_is_a_notice_and_a_retry_never_a_failure(data_dir, tmp_path):
+    listed = backfill_list(tmp_path, BACKFILL_UID)
+    gone = {event_url(BACKFILL_UID): fetch_rides.requests.RequestException("nope")}
+    state = sync.run(config(data_dir, backfill_events=listed), **{**SEAMS, "fetch_page": paged(gone)})
+    assert (data_dir / "events.json").exists(), "the rest of the sync went ahead"
+    assert BACKFILL_UID not in uids(data_dir / "events-past.json")
+    assert state.report.backfill_missed == 1
+    assert state.report.backfill_queued == 1
+    notices = backfill_notices(state)
+    assert len(notices) == 1 and "fetched none" in notices[0]
+    assert ("notice", notices[0]) in state.report.warnings()
+
+    # Next run tries again, and this time the page is there.
+    calls = []
+    pages = {event_url(BACKFILL_UID): backfill_page(BACKFILL_UID, PAST_START)}
+    state = sync.run(
+        config(data_dir, now=LATER, backfill_events=listed),
+        **{**SEAMS, "fetch_page": paged(pages, calls)},
+    )
+    assert calls.count(event_url(BACKFILL_UID)) == 1
+    assert BACKFILL_UID in uids(data_dir / "events-past.json")
+    assert backfill_notices(state) == []
+
+
+def test_a_page_that_is_not_an_event_counts_as_unreadable(data_dir, tmp_path):
+    pages = {event_url(BACKFILL_UID): "<html><body>This event is no longer available.</body></html>"}
+    state = sync.run(
+        config(data_dir, backfill_events=backfill_list(tmp_path, BACKFILL_UID)),
+        **{**SEAMS, "fetch_page": paged(pages)},
+    )
+    assert BACKFILL_UID not in uids(data_dir / "events-past.json")
+    assert state.report.backfill_missed == 1
+
+
+def test_ids_the_sync_already_covers_are_never_fetched(data_dir, tmp_path):
+    archived = dict(
+        dropped_ride(), uid="ArchivedRide0001", rsvp_url=event_url("ArchivedRide0001"), routes=[]
+    )
+    write_payload(data_dir / "events-past.json", [archived])
+    excluded = tmp_path / "excluded.json"
+    excluded.write_text(json.dumps({"ExcludedRide0001": "a party, not a ride"}), encoding="utf-8")
+    fed = feed_rides()[0]["uid"]
+    listed = backfill_list(tmp_path, "ArchivedRide0001", "ExcludedRide0001", fed)
+
+    calls = []
+    state = sync.run(
+        config(data_dir, backfill_events=listed, excluded_events=excluded),
+        **{**SEAMS, "fetch_page": paged({}, calls)},
+    )
+    assert event_url("ArchivedRide0001") not in calls
+    assert event_url("ExcludedRide0001") not in calls
+    assert state.backfilled == [] and state.backfill_missed == []
+    assert "ExcludedRide0001" not in uids(data_dir / "events-past.json")
+    assert state.report.backfill_listed == 3
+    assert state.report.backfill_queued == 0, "covered is covered, whichever way"
+    assert backfill_notices(state) == []
+
+
+def test_the_backfill_limit_bounds_one_run_and_the_rest_follow_next_time(data_dir, tmp_path):
+    ids = ["BackfillRideA", "BackfillRideB", "BackfillRideC"]
+    pages = {
+        event_url(uid): backfill_page(uid, PAST_START - timedelta(days=i), title=uid)
+        for i, uid in enumerate(ids)
+    }
+    listed = backfill_list(tmp_path, *ids)
+
+    state = sync.run(
+        config(data_dir, backfill_events=listed, backfill_limit=2),
+        **{**SEAMS, "fetch_page": paged(pages)},
+    )
+    assert uids(data_dir / "events-past.json") >= {"BackfillRideA", "BackfillRideB"}
+    assert "BackfillRideC" not in uids(data_dir / "events-past.json")
+    assert state.report.backfill_fetched == 2
+    assert state.report.backfill_queued == 1
+
+    state = sync.run(
+        config(data_dir, now=LATER, backfill_events=listed, backfill_limit=2),
+        **{**SEAMS, "fetch_page": paged(pages)},
+    )
+    assert "BackfillRideC" in uids(data_dir / "events-past.json")
+    assert state.report.backfill_fetched == 1
+    assert state.report.backfill_queued == 0
+
+
+def test_backfill_limit_zero_fetches_nothing(data_dir, tmp_path):
+    calls = []
+    state = sync.run(
+        config(data_dir, backfill_events=backfill_list(tmp_path, BACKFILL_UID), backfill_limit=0),
+        **{**SEAMS, "fetch_page": paged({}, calls)},
+    )
+    assert event_url(BACKFILL_UID) not in calls
+    assert state.report.backfill_queued == 1
+
+
+def test_an_offline_run_without_a_page_seam_fetches_nothing(data_dir, tmp_path):
+    """--ics-file with no seams is byte-for-byte network-free, list or no list."""
+    state = sync.run(config(data_dir, backfill_events=backfill_list(tmp_path, BACKFILL_UID)))
+    assert (data_dir / "events.json").exists()
+    assert BACKFILL_UID not in uids(data_dir / "events-past.json")
+    assert state.report.backfill_queued == 1
+    assert any("offline run, none fetched" in note for note in state.notes)
+
+
+def test_archiving_before_the_backfill_loses_the_listed_ride(data_dir, tmp_path):
+    """The ordering rule: the backfill's rides are the archive step's input."""
+    steps = ordered(
+        "fetch", "archive", "backfill", "enrich_archive", "posters", "geocode", "maps",
+        "promote", "export_ics",
+    )
+    pages = {event_url(BACKFILL_UID): backfill_page(BACKFILL_UID, PAST_START)}
+    sync.run(
+        config(data_dir, backfill_events=backfill_list(tmp_path, BACKFILL_UID)),
+        steps=steps,
+        **{**SEAMS, "fetch_page": paged(pages)},
+    )
+    assert BACKFILL_UID not in uids(data_dir / "events-past.json")
+
+
+def test_the_report_and_summary_carry_the_backfill(data_dir, tmp_path):
+    pages = {event_url(BACKFILL_UID): backfill_page(BACKFILL_UID, PAST_START)}
+    state = sync.run(
+        config(data_dir, backfill_events=backfill_list(tmp_path, BACKFILL_UID)),
+        **{**SEAMS, "fetch_page": paged(pages)},
+    )
+    assert state.report.state()["backfill"] == {"listed": 1, "queued": 0}
+    assert any(line.startswith("backfill: 1 listed ride(s) fetched") for line in state.report.lines())
+    assert "| Listed rides still not archived | 0 / 1 |" in sync.summary_markdown(state.report)
 
 
 # --- the ride-photo mirror -------------------------------------------------
@@ -1018,7 +1311,7 @@ def test_the_report_json_carries_nothing_that_moves_between_runs(data_dir):
     hours forever.
     """
     state = do_run(data_dir).report.state()
-    assert set(state) == {"feed", "upcoming", "archive", "cafes", "posters", "maps"}
+    assert set(state) == {"feed", "upcoming", "archive", "backfill", "cafes", "posters", "maps"}
     keys = {key for section in state.values() for key in section}
     for moving in ("updated_at", "now", "drawn", "written", "first_seen",
                    "queried", "backfilled", "enriched", "mirrored_this_run"):

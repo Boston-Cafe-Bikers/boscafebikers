@@ -23,6 +23,10 @@ to prove each rule still bites:
   equal the next fetch, so every run commits a new ``updated_at`` forever.
 * **posters before promote** — same rule, same reason: the poster mirror adds
   ``poster``, and a fetch never carries that either.
+* **backfill between fetch and archive** — the listed rides the feed never had
+  (scripts/backfill_events.json) are fetched by id from their event pages; it
+  needs the fetch's lists to know which ids are already covered, and the
+  archive is where its rides go.
 * **the ICS export after promote** — its DTSTAMP comes from the payload's
   ``updated_at``, which is stamped fresh every run. Exported from the freshly
   fetched payload the calendar would churn every 6 hours; exported from the
@@ -67,6 +71,7 @@ import requests
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import archive_events  # noqa: E402
+import backfill_events  # noqa: E402
 import enrich_archive  # noqa: E402
 import export_ics  # noqa: E402
 import fetch_rides  # noqa: E402
@@ -81,6 +86,7 @@ DEFAULT_DATA_DIR = REPO_ROOT / "site"
 DEFAULT_URL_PREFIX = render_route_maps.DEFAULT_URL_PREFIX
 DEFAULT_ENRICH_LIMIT = enrich_archive.DEFAULT_LIMIT
 DEFAULT_POSTER_LIMIT = 8
+DEFAULT_BACKFILL_LIMIT = backfill_events.DEFAULT_LIMIT
 LOCAL_TZ = fetch_rides.LOCAL_TZ
 
 
@@ -105,8 +111,12 @@ class Config:
     ics_file: Optional[Path] = None
     ride_images: Path = fetch_rides.RIDE_IMAGES_PATH
     excluded_events: Path = fetch_rides.EXCLUDED_EVENTS_PATH
+    # The class body sees the module `backfill_events` here, not the field it
+    # is about to define — the default is evaluated before the name is bound.
+    backfill_events: Path = backfill_events.BACKFILL_EVENTS_PATH
     now: Optional[datetime] = None
     enrich_limit: int = DEFAULT_ENRICH_LIMIT
+    backfill_limit: int = DEFAULT_BACKFILL_LIMIT
     poster_limit: int = DEFAULT_POSTER_LIMIT
     url_prefix: str = DEFAULT_URL_PREFIX
     dry_run: bool = False
@@ -116,6 +126,7 @@ class Config:
         self.ics_file = Path(self.ics_file) if self.ics_file else None
         self.ride_images = Path(self.ride_images)
         self.excluded_events = Path(self.excluded_events)
+        self.backfill_events = Path(self.backfill_events)
         self.url_prefix = str(self.url_prefix).strip("/")
         now = self.now or datetime.now(timezone.utc)
         if now.tzinfo is None:
@@ -528,6 +539,12 @@ class Run:
     excluded: set = field(default_factory=set)
     archive: Optional[list] = None
     archive_before: list = field(default_factory=list)
+    # The backfill list (scripts/backfill_events.json): every id it names, the
+    # records this run built from their pages — a source for the archive step —
+    # and the ids whose page it couldn't read, which are retried next run.
+    backfill_listed: list = field(default_factory=list)
+    backfilled: list = field(default_factory=list)
+    backfill_missed: list = field(default_factory=list)
     # True once events.json holds *this* run's upcoming payload. It is what
     # tells the later steps which file is "the published list" — and it is why
     # reordering the steps changes the result instead of quietly working.
@@ -620,6 +637,51 @@ def step_fetch(run: Run) -> None:
     )
 
 
+def step_backfill(run: Run) -> None:
+    """Fetch the listed rides the feed never carried, for the archive step.
+
+    After the fetch, because "already covered" means the feed's two lists and
+    the excluded set as well as the archive — a listed id the feed also has is
+    the feed's to deliver. Before the archive, because that is where these go.
+    Nothing here writes a file, and nothing here can fail the sync: a page
+    that can't be read is counted and retried next run.
+    """
+    config = run.config
+    run.backfill_listed = backfill_events.load_backfill_events(config.backfill_events)
+    if not run.backfill_listed:
+        return
+    existing = run.files.read_json(config.archive_path, default={}) or {}
+    known = {
+        archive_events.ride_key(ride)
+        for ride in (
+            list(existing.get("events") or [])
+            + list((run.payload or {}).get("events") or [])
+            + list(run.feed_past)
+        )
+        if isinstance(ride, dict)
+    }
+    known |= run.excluded
+    queue = backfill_events.pending(run.backfill_listed, known)
+    if not queue:
+        return
+    if not run.seams.enrich_enabled:
+        run.note(
+            f"backfill: {len(queue)} listed ride(s) not yet archived; "
+            "offline run, none fetched"
+        )
+        return
+    run.backfilled, run.backfill_missed = backfill_events.backfill(
+        queue, limit=config.backfill_limit, **run.seams.enrich_kwargs()
+    )
+    message = (
+        f"backfill: fetched {len(run.backfilled)} of {len(queue)} listed "
+        "ride(s) not yet archived"
+    )
+    if run.backfill_missed:
+        message += f"; {len(run.backfill_missed)} page(s) could not be read"
+    run.note(message)
+
+
 def step_archive(run: Run) -> None:
     """Fold the rides that have happened into the accumulating archive.
 
@@ -631,7 +693,10 @@ def step_archive(run: Run) -> None:
     committed = run.files.read_json(config.events_path, default={}) or {}
     existing = run.files.read_json(config.archive_path, default={}) or {}
     run.archive_before = existing.get("events") or []
-    sources = [committed.get("events") or [], run.feed_past]
+    # The backfill list's rides last: they are only ever ids nothing else
+    # covers, so the order is moot, and merge_archive keeps just the ones that
+    # have happened — an upcoming one waits for its grace hour.
+    sources = [committed.get("events") or [], run.feed_past, run.backfilled]
     # Derived on the *merged* result: merge_ride's "None never overwrites" rule
     # decides which location survives, and the display fields have to follow it
     # rather than an older entry's. Running over the whole archive every sync is
@@ -833,6 +898,7 @@ def step_export_ics(run: Run) -> None:
 # each ordering rule earning its place; nothing else depends on the sequence.
 STEPS = (
     ("fetch", step_fetch),
+    ("backfill", step_backfill),
     ("archive", step_archive),
     ("enrich_archive", step_enrich_archive),
     ("posters", step_posters),
@@ -880,6 +946,11 @@ class Report:
     enrich_limit: int = 0
     archive_unchecked: int = 0
     archive_unchecked_before: int = 0
+    # the backfill list — rides the feed never carried, fetched by id
+    backfill_listed: int = 0
+    backfill_fetched: int = 0
+    backfill_missed: int = 0
+    backfill_queued: int = 0
     # geocoding
     geocode_queried: int = 0
     geocode_found: int = 0
@@ -934,6 +1005,12 @@ class Report:
                 "rides": self.archive_size,
                 "never_checked": self.archive_unchecked,
             },
+            # The list's size and how much of it is still to land: both the
+            # same on two quiet runs. "fetched this run" is stdout-only.
+            "backfill": {
+                "listed": self.backfill_listed,
+                "queued": self.backfill_queued,
+            },
             "cafes": {"placed": self.cafes_placed, "unplaced": self.cafes_unplaced},
             # Sizes after the run, so they are the same on a second quiet one.
             # "mirrored this run" is deliberately absent, like "drew N maps".
@@ -958,6 +1035,10 @@ class Report:
             f"archive: {self.archive_size} ride(s), {self.archive_enriched} backfilled "
             f"this run (limit {self.enrich_limit}), "
             f"{self.archive_unchecked} never checked",
+            f"backfill: {self.backfill_fetched} listed ride(s) fetched this run, "
+            f"{self.backfill_missed} page(s) unreadable, "
+            f"{self.backfill_queued}/{self.backfill_listed} listed id(s) still "
+            "not archived",
             f"cafes: {self.geocode_queried} looked up this run "
             f"({self.geocode_found} found, {self.geocode_missed} missed), "
             f"{self.cafes_placed} placed, {self.cafes_unplaced} unplaced",
@@ -1014,6 +1095,16 @@ class Report:
                 "notice",
                 f"{self.archive_unchecked} archived ride(s) have never been "
                 "checked and this run cleared none of them",
+            ))
+        # A listed id that never lands is a wrong id or an event Partiful no
+        # longer serves. An upcoming listed ride is fetched every run until its
+        # grace hour passes, so it counts as fetched and never trips this.
+        if self.enrichment_ran and self.backfill_queued and not self.backfill_fetched:
+            notes.append((
+                "notice",
+                f"{self.backfill_queued} id(s) in backfill_events.json are still "
+                "not archived and this run fetched none of them — a wrong id, "
+                "or an event Partiful no longer serves",
             ))
         return notes
 
@@ -1113,6 +1204,12 @@ def build_report(state: Run) -> Report:
     cache = _cafe_cache(state)
     stats = state.geocode_stats or {}
     stored = rides + archive
+    # What the backfill list still owes: every listed id the sync has no
+    # record of — not archived, not in the feed, not excluded. Recomputed from
+    # the finished archive so it reads 0 once the list has drained.
+    covered = {
+        archive_events.ride_key(ride) for ride in stored + list(state.feed_past)
+    } | set(state.excluded)
     return Report(
         upcoming=len(rides),
         feed_past=len(state.feed_past),
@@ -1127,6 +1224,10 @@ def build_report(state: Run) -> Report:
         enrich_limit=state.config.enrich_limit,
         archive_unchecked=len(enrich_archive.pending(archive)),
         archive_unchecked_before=state.archive_unchecked_before,
+        backfill_listed=len(state.backfill_listed),
+        backfill_fetched=len(state.backfilled),
+        backfill_missed=len(state.backfill_missed),
+        backfill_queued=len(backfill_events.pending(state.backfill_listed, covered)),
         geocode_queried=stats.get("queried", 0),
         geocode_found=stats.get("found", 0),
         geocode_missed=stats.get("missed", 0),
@@ -1167,6 +1268,11 @@ def summary_markdown(report: Report) -> str:
             f"{report.archive_enriched} / {report.enrich_limit}",
         ),
         ("Archived rides never checked", str(report.archive_unchecked)),
+        ("Listed rides fetched this run (backfill list)", str(report.backfill_fetched)),
+        (
+            "Listed rides still not archived",
+            f"{report.backfill_queued} / {report.backfill_listed}",
+        ),
         (
             "Café locations looked up this run",
             f"{report.geocode_queried} "
@@ -1325,6 +1431,12 @@ def build_parser() -> argparse.ArgumentParser:
         f"(default: {fetch_rides.EXCLUDED_EVENTS_PATH})",
     )
     parser.add_argument(
+        "--backfill-events",
+        default=str(backfill_events.BACKFILL_EVENTS_PATH),
+        help="event id → note sidecar of rides the feed never carried, fetched "
+        f"from their Partiful pages (default: {backfill_events.BACKFILL_EVENTS_PATH})",
+    )
+    parser.add_argument(
         "--now",
         type=parse_now,
         help="pin the clock to this ISO timestamp (tests; Eastern if naive)",
@@ -1335,6 +1447,13 @@ def build_parser() -> argparse.ArgumentParser:
         default=DEFAULT_ENRICH_LIMIT,
         help="most archived rides to backfill per run "
         f"(default: {DEFAULT_ENRICH_LIMIT}, 0 for none)",
+    )
+    parser.add_argument(
+        "--backfill-limit",
+        type=int,
+        default=DEFAULT_BACKFILL_LIMIT,
+        help="most listed rides to fetch per run "
+        f"(default: {DEFAULT_BACKFILL_LIMIT}, 0 for none)",
     )
     parser.add_argument(
         "--poster-limit",
@@ -1364,8 +1483,10 @@ def main(argv: list = None) -> int:
         ics_file=args.ics_file,
         ride_images=args.ride_images,
         excluded_events=args.excluded_events,
+        backfill_events=args.backfill_events,
         now=args.now,
         enrich_limit=args.enrich_limit,
+        backfill_limit=args.backfill_limit,
         poster_limit=args.poster_limit,
         url_prefix=args.url_prefix,
         dry_run=args.dry_run,

@@ -110,6 +110,25 @@ drops it everywhere, including from `events-past.json` if it was
 already archived. Deleting it from that file by hand doesn't stick: the sync
 would archive it again from the feed.
 
+**Rides the feed never had.** The feed behind `PARTIFUL_ICS_URL` is one
+*account's* calendar: it carries what that account hosts or has RSVP'd to. So
+the archive — and with it the café map — only reaches back as far as that
+account's first RSVP, and misses any ride nobody on it answered. To pull the
+rest in, list their event ids in `scripts/backfill_events.json` (the id from
+each ride's `partiful.com/e/<id>` link, with a note saying which ride) and
+commit. The next sync fetches each listed event's public page — the same page
+enrichment already reads, so no new secret — builds the same ride record the
+feed would have, and archives it once the ride has happened, photo and route
+included, at most `--backfill-limit` (default 10) per run. An id the sync
+already has a record of is never fetched, so the file is a queue that drains
+itself and can stay as it is; an upcoming id waits until its grace hour has
+passed. A page that can't be read is retried next run and shows up as a notice
+on the run summary, never as a failure — an id that keeps failing is a typo or
+an event Partiful deleted, so fix it or drop it. The zero-list alternative is
+to put the **group account's own** calendar-sync URL in the secret: the sync's
+past pass archives everything that feed carries, which is every ride the group
+has hosted.
+
 The sync also re-exports every upcoming ride as a public calendar feed at `rides.ics` — subscribe to <https://cafebikers.org/rides.ics> (or the `webcal://` form in Apple Calendar) and new rides appear on their own. The rides page offers it three ways: the `.ics` link, a Google Calendar button (a deep link into Google's "add calendar from URL" screen with the feed filled in), and the `webcal://` link for Apple Calendar.
 
 ### The `data` branch
@@ -149,6 +168,12 @@ For local development, `scripts/pull_data.sh` extracts those files into `site/`
 2. Copy the subscription URL. It starts with `webcal://`.
 3. Swap the scheme: `webcal://` → `https://`. (The script does this rewrite
    itself too, so either form works.)
+
+The URL is per account: the feed carries the events *that account* hosts or has
+RSVP'd to, past and future. A personal account's feed therefore reaches back to
+its owner's first RSVP; the group account's feed is the one that carries every
+ride the group has ever hosted (see "Rides the feed never had" above for the
+other way to fill the gap).
 
 **Never commit this URL.** It is effectively a private feed of the group's
 events. It belongs only in the `PARTIFUL_ICS_URL` environment variable / GitHub
@@ -338,6 +363,7 @@ needs touching.
 | `scripts/promote_events.py` | Copy fetched JSON into place only if the rides changed |
 | `scripts/archive_events.py` | Fold already-happened rides into `events-past.json` |
 | `scripts/enrich_archive.py` | Backfill images/routes onto archived rides, a few per run |
+| `scripts/backfill_events.py` | Build archive records for rides the feed never carried, from the event ids listed in `scripts/backfill_events.json` |
 | `scripts/ride_fields.py` | The display fields every stored ride carries — café name, address, year, route start/end names, the grace-hour cutoff |
 | `scripts/route_map.py` | Draw a route as an SVG (stdlib only) |
 | `scripts/render_route_maps.py` | Fetch route geometry and write `maps/<uid>.svg` |
@@ -349,6 +375,7 @@ needs touching.
 | `tests/test_sync.py` | pytest suite for the pipeline — a second run writes zero bytes, and each ordering rule is proved by breaking it |
 | `tests/test_fetch_rides.py` | pytest suite for the fetch script |
 | `tests/test_archive_events.py` | pytest suite for the past-rides archive |
+| `tests/test_backfill_events.py` | pytest suite for the id-listed backfill; its sync-level tests live in `tests/test_sync.py` |
 | `tests/test_site_html.py` | pytest suite for the pages — well-formed, shared nav/footer, no root-relative URLs |
 | `tests/js/site.test.mjs` | `node --test` suite for `site/js/*.js`, against the DOM shim in `tests/js/dom-shim.mjs` |
 | `.github/workflows/sync.yml` | Cron sync every 6h + manual dispatch (with a dry-run option): tests → `sync.py` → commit to `data`; calls `pages.yml` when rides change |
