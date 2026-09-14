@@ -52,9 +52,14 @@ re-derives them.
 If `events.json` is missing, empty, or unreadable, the page falls back to a
 link to the Partiful profile instead of showing an empty list.
 
-**Past rides stay on the calendar.** A ride leaves `events.json` as soon as it
-starts, so `scripts/archive_events.py` folds it into `events-past.json`
-first. The archive accumulates — Partiful makes no promise to keep exporting
+**Past rides stay on the calendar.** A ride leaves `events.json` an hour after
+it starts, so `scripts/archive_events.py` folds it into `events-past.json`
+first. That file is only as fresh as the last sync, up to 6 hours ago, so the
+page doesn't trust it on this point: `app.js` checks each upcoming ride's
+`grace_until` against the visitor's clock, treats a ride past it as finished
+(dimmed on the calendar, never the featured next ride), and re-renders itself
+when the featured ride's grace hour ends — so the "Next ride" card moves on
+the moment the current one is over, not at the next sync. The archive accumulates — Partiful makes no promise to keep exporting
 old events, and once one falls out of the feed this file is the only copy. The
 calendar draws archived rides dimmed and their cards offer "See it on Partiful"
 instead of an RSVP button; the featured next-ride card only ever reads the

@@ -543,6 +543,172 @@ test("a rolling ride wears the pill and keeps RSVP and both exports", async () =
 });
 
 /* ================================================================== *
+ * The next ride is decided against the clock, not the last sync
+ * ================================================================== */
+// events.json is rewritten every 6 hours, so a ride can sit at events[0] for
+// hours after its grace hour ended (issue #13). app.js splits the list against
+// the visitor's clock: BCB.isOver is the far edge of the same window isRolling
+// reads, and a page left open re-renders itself when that edge passes.
+
+const MINUTE = 60 * 1000;
+
+// An ISO string that parses back to `ms`. Only the instant matters here —
+// isRolling / isOver compare it, nothing formats it — so a +00:00 offset is as
+// good as an Eastern one (see the "rolling ride" fixture above).
+function isoAt(ms) {
+  const d = new Date(ms);
+  const p = (n) => String(n).padStart(2, "0");
+  return d.getUTCFullYear() + "-" + p(d.getUTCMonth() + 1) + "-" + p(d.getUTCDate()) +
+    "T" + p(d.getUTCHours()) + ":" + p(d.getUTCMinutes()) + ":" + p(d.getUTCSeconds()) + "+00:00";
+}
+
+// A copy of `base` starting `offsetMs` from now, with the hour's grace after it.
+function rideStarting(base, offsetMs, extra) {
+  const startMs = Date.now() + offsetMs;
+  return Object.assign({}, base, {
+    start: isoAt(startMs),
+    grace_until: isoAt(startMs + 60 * MINUTE),
+    end: null
+  }, extra || {});
+}
+
+// The switch timer is the only long one the page arms (downloadIcs's revoke
+// tick is 0 ms), and a cleared entry stays in the list so a test can see it
+// was replaced rather than stacked.
+function switchTimers(h) {
+  return h.timers.filter((t) => t.ms > 1000 && !t.cleared);
+}
+
+test("isOver is the far edge of the grace window isRolling reads", async () => {
+  const h = await booted();
+  const startMs = Date.parse(RIDE_A.start);
+
+  assert.equal(h.BCB.isOver(RIDE_A, startMs - MINUTE), false, "before start");
+  assert.equal(h.BCB.isOver(RIDE_A, startMs + 30 * MINUTE), false, "mid-ride");
+  assert.equal(h.BCB.isOver(RIDE_A, startMs + 60 * MINUTE), false,
+    "the last instant of grace_until is still not over");
+  assert.equal(h.BCB.isOver(RIDE_A, startMs + 60 * MINUTE + 1), true, "one tick later");
+  // The two never both hold, and after start one of them always does.
+  assert.equal(h.BCB.isRolling(RIDE_A, startMs + 60 * MINUTE + 1), false);
+
+  // No grace_until — data from before the field existed — is no verdict: the
+  // ride stays wherever the sync put it, never guessed over in the browser.
+  assert.equal(h.BCB.isOver({ start: RIDE_A.start }, startMs + 3 * 60 * MINUTE), false);
+  assert.equal(h.BCB.isOver(Object.assign({}, RIDE_A, { grace_until: null }), startMs + 3 * 60 * MINUTE), false);
+  assert.equal(h.BCB.isOver({}, startMs), false);
+});
+
+test("a ride whose grace hour has passed is skipped for the card and dimmed on the calendar", async () => {
+  const ended = rideStarting(RIDE_A, -3 * 60 * MINUTE, { uid: "ended", title: "Ended two hours ago" });
+  const h = createHarness({
+    routes: {
+      "events.json": { body: payload([ended, RIDE_B]) },
+      "events-past.json": { body: { events: [PAST_RIDE] } }
+    }
+  });
+  await h.flush();
+
+  // The card shows the first ride that hasn't finished, not events[0].
+  const card = h.nextRideCard.querySelector(".ride");
+  assert.equal(card.querySelector("h3").textContent, RIDE_B.title);
+  assert.ok(!card.classList.contains("is-past"));
+
+  // On the calendar the finished ride reads exactly like an archived one.
+  const chips = Array.from(h.schedule.querySelectorAll(".ride-chip"));
+  const byTitle = Object.fromEntries(chips.map((chip) => [chip.textContent, chip]));
+  assert.ok(byTitle[ended.title].classList.contains("is-past"), "the finished ride's chip is dimmed");
+  assert.equal(byTitle[ended.title].getAttribute("aria-label"),
+    "View details for past ride " + ended.title);
+  assert.ok(byTitle[PAST_RIDE.title].classList.contains("is-past"));
+  assert.ok(!byTitle[RIDE_B.title].classList.contains("is-past"));
+
+  // …and so does its detail card: no RSVP, no exports.
+  byTitle[ended.title].click();
+  const modalCard = h.modalContent.querySelector(".ride");
+  assert.ok(modalCard.classList.contains("is-past"));
+  assert.equal(modalCard.querySelector(".ride-tag").textContent, "Past ride");
+  assert.equal(modalCard.querySelector(".ride-actions").children.length, 1);
+
+  // The flag went on a copy; the fetched object is untouched.
+  assert.equal(ended.past, undefined);
+});
+
+test("when every published ride has finished, the card shows the empty state", async () => {
+  const ended = rideStarting(RIDE_A, -3 * 60 * MINUTE);
+  const h = createHarness({ routes: { "events.json": { body: payload([ended]) } } });
+  await h.flush();
+
+  assert.equal(h.nextRideCard.querySelector(".ride"), null);
+  assert.equal(h.nextRideCard.querySelector(".note").textContent,
+    "No rides scheduled yet — check Partiful for the next one.");
+  assert.equal(h.nextRideCard.querySelector(".btn").href, PARTIFUL);
+  // The calendar still has the ride — dimmed — and no timer waits on it.
+  const chips = h.schedule.querySelectorAll(".ride-chip");
+  assert.equal(chips.length, 1);
+  assert.ok(chips[0].classList.contains("is-past"));
+  assert.equal(switchTimers(h).length, 0);
+});
+
+test("a rolling ride is still the next ride, with a switch timer armed for the end of its grace hour", async () => {
+  const rolling = rideStarting(RIDE_A, -10 * MINUTE);
+  const h = createHarness({ routes: { "events.json": { body: payload([rolling, RIDE_B]) } } });
+  await h.flush();
+
+  assert.equal(h.nextRideCard.querySelector("h3").textContent, rolling.title);
+  assert.equal(h.nextRideCard.querySelector(".ride-tag").textContent, "Rolling now");
+
+  const armed = switchTimers(h);
+  assert.equal(armed.length, 1, "exactly one switch timer");
+  const expected = Date.parse(rolling.grace_until) + 1000 - Date.now();
+  assert.ok(Math.abs(armed[0].ms - expected) < 5 * 1000,
+    "fires one second after grace_until, got " + armed[0].ms + " vs " + expected);
+});
+
+test("an open page switches to the next ride when the grace hour ends", async () => {
+  const rolling = rideStarting(RIDE_A, -10 * MINUTE);
+  const h = createHarness({ routes: { "events.json": { body: payload([rolling, RIDE_B]) } } });
+  await h.flush();
+  const [timer] = switchTimers(h);
+
+  // Let the timer fire "on time": move the page's clock to just past
+  // grace_until and run the callback by hand.
+  h.setNow(Date.parse(rolling.grace_until) + 2000);
+  timer.fn();
+
+  assert.equal(h.nextRideCard.querySelector("h3").textContent, RIDE_B.title);
+  const chips = Array.from(h.schedule.querySelectorAll(".ride-chip"));
+  const rolled = chips.find((chip) => chip.textContent === rolling.title);
+  assert.ok(rolled.classList.contains("is-past"), "the finished ride is dimmed after the switch");
+  // RIDE_B is in 2030 — past setTimeout's 32-bit reach — so nothing new is
+  // armed for it; a ride that far out is left to the next page load. (The
+  // timer fired by hand above is still in the harness list: firing it early
+  // doesn't clear the real one.)
+  assert.deepEqual(switchTimers(h).filter((t) => t !== timer), []);
+});
+
+test("a re-render replaces the switch timer instead of stacking another", async () => {
+  const rolling = rideStarting(RIDE_A, -10 * MINUTE);
+  const h = createHarness({ routes: { "events.json": { body: payload([rolling, RIDE_B]) } } });
+  await h.flush();
+  const first = switchTimers(h)[0];
+
+  // The late-CDN hook re-renders the whole page.
+  const stub = makeFullCalendarStub();
+  h.setFullCalendar({ Calendar: stub.Calendar });
+  h.fcScript.dispatchEvent({ type: "load" });
+
+  assert.equal(first.cleared, true, "the earlier timer was cancelled");
+  assert.equal(switchTimers(h).length, 1, "one live timer after the re-render");
+});
+
+test("no switch timer is armed for a ride beyond setTimeout's reach", async () => {
+  // The fixtures live in 2030: nothing to wait on, and no 32-bit overflow
+  // that would fire the callback immediately.
+  const h = await booted();
+  assert.equal(switchTimers(h).length, 0);
+});
+
+/* ================================================================== *
  * The route line reads its names, it doesn't derive them
  * ================================================================== */
 // The Bluebikes-dock rule lives in scripts/ride_fields.py (and is tested in

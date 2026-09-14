@@ -512,14 +512,33 @@ export function createHarness({ routes = {}, FullCalendar = undefined } = {}) {
 
   const fetchImpl = makeFetch(routes);
 
+  // Every timer the page arms, in order, so a test can see what app.js
+  // scheduled and fire it by hand (the next-ride switch — see scheduleSwitch).
+  // Real node timers back them, because downloadIcs's revoke tick has to
+  // actually run; they are unref'd so a long one — a switch an hour out, for a
+  // fixture pinned to "now" — can't hold the test process open after the
+  // suite is done.
+  const timers = [];
+  const armTimer = (fn, ms, ...args) => {
+    const handle = setTimeout(fn, ms, ...args);
+    if (handle && typeof handle.unref === "function") { handle.unref(); }
+    timers.push({ fn, ms, handle, cleared: false });
+    return handle;
+  };
+  const disarmTimer = (handle) => {
+    clearTimeout(handle);
+    const entry = timers.find((t) => t.handle === handle);
+    if (entry) { entry.cleared = true; }
+  };
+
   const sandbox = {
     document: dom.doc,
     fetch: fetchImpl,
     Blob,
     URL: URLStub,
     console,
-    setTimeout,
-    clearTimeout,
+    setTimeout: armTimer,
+    clearTimeout: disarmTimer,
     location: { href: "" },
     navigator: { userAgent: "node-dom-shim" },
     addEventListener(type, handler) {
@@ -550,6 +569,7 @@ export function createHarness({ routes = {}, FullCalendar = undefined } = {}) {
     fetchImpl,
     blobs,
     objectUrls,
+    timers,
     get BCB() { return context.BCB; },
     // window "load" is what app.js waits on before painting [data-bg] photos.
     fireWindowEvent(type, event) {
@@ -557,6 +577,12 @@ export function createHarness({ routes = {}, FullCalendar = undefined } = {}) {
     },
     windowListeners,
     setFullCalendar(stub) { context.FullCalendar = stub; },
+    // Pin the page's clock. The scripts read Date.now() off the sandbox's own
+    // Date, a vm intrinsic that is not reachable as a property of `context`,
+    // so the override has to be evaluated inside it. Date.parse is untouched.
+    setNow(ms) {
+      vm.runInContext("Date.now = () => " + Number(ms) + ";", context, { filename: "dom-shim:clock" });
+    },
     // The fetch chain is two promises deep; a few macrotask turns settle it.
     async flush(turns = 6) {
       for (let i = 0; i < turns; i++) {

@@ -6,7 +6,7 @@
 (function (BCB) {
   "use strict";
 
-  const { el, rideCard, PARTIFUL, MONTHS } = BCB;
+  const { el, rideCard, isOver, PARTIFUL, MONTHS } = BCB;
   const { renderCalendarFull, destroyCalendar, groupByMonth, monthGrid } = BCB;
 
   const schedule = document.getElementById("schedule");
@@ -23,11 +23,28 @@
   // Both lists are sorted by start already, and every past ride precedes every
   // upcoming one, so this concatenation is chronological. Each archived ride is
   // copied with `past: true` — the flag drives the dimmed calendar chip and the
-  // ride card's "See it on Partiful" variant.
-  function calendarEvents(upcoming) {
+  // ride card's "See it on Partiful" variant. `over` is the slice of
+  // events.json the visitor's clock says has already finished (see split());
+  // it sits between the two, because it started after everything archived and
+  // before everything still to come.
+  function calendarEvents(over, upcoming) {
     return pastEvents
+      .concat(over)
       .map((ev) => Object.assign({}, ev, { past: true }))
       .concat(upcoming);
+  }
+
+  // events.json is only as fresh as the last sync, up to 6 hours ago, so the
+  // ride at events[0] may have ended hours before the page loaded. Decide
+  // against the visitor's clock instead: everything whose grace hour has
+  // passed is `over` (dimmed on the calendar, no RSVP, never the next ride),
+  // the rest is `upcoming`. Order is preserved, so upcoming[0] is the next
+  // ride. isOver is the one sanctioned read of the clock — see ride-card.js.
+  function split(events) {
+    const over = [];
+    const upcoming = [];
+    events.forEach((ev) => { (isOver(ev) ? over : upcoming).push(ev); });
+    return { over, upcoming };
   }
 
   function emptyState(message) {
@@ -97,11 +114,11 @@
   }
   BCB.openRideModal = openRideModal;
 
-  // The next-ride section always shows events[0] (events.json is sorted by
-  // start, and the sync filters to rides that haven't happened yet — plus the
-  // grace hour after a ride starts, so a latecomer still lands on it and the
-  // card wears rideCard's "Rolling now" pill), or an empty-state with a
-  // Partiful fallback link when the calendar has nothing upcoming.
+  // The next-ride section shows the first ride that hasn't finished: events
+  // are the `upcoming` half of split(), sorted by start. A ride inside its
+  // grace hour still counts (a latecomer lands on it and the card wears
+  // rideCard's "Rolling now" pill); one past it does not, however stale
+  // events.json is. Nothing left → an empty state with a Partiful link.
   function setNextRide(events) {
     nextRideCard.textContent = "";
     if (!events.length) {
@@ -118,15 +135,40 @@
   // The schedule section is calendar-only now: FullCalendar 6 when its CDN
   // script has loaded, otherwise the hand-rolled month grid. The list view
   // was removed in favor of the featured next-ride card above.
+  // A page left open across the end of a grace hour switches on its own: the
+  // timer fires one second after upcoming[0]'s grace_until and re-renders,
+  // which moves that ride into `over` and the next one into the card. One
+  // timer at a time (render() can run more than once — the late-CDN hook), and
+  // none past setTimeout's 32-bit ceiling (~24.8 days): a ride further out
+  // than that is left to the next page load.
+  const MAX_TIMER_MS = 2147483647;
+  let switchTimer = null;
+  function scheduleSwitch(next) {
+    if (switchTimer !== null) {
+      clearTimeout(switchTimer);
+      switchTimer = null;
+    }
+    const endMs = Date.parse((next && next.grace_until) || "");
+    if (isNaN(endMs)) { return; }
+    const delay = endMs - Date.now() + 1000;
+    if (delay <= 0 || delay > MAX_TIMER_MS) { return; }
+    switchTimer = setTimeout(() => {
+      switchTimer = null;
+      render();
+    }, delay);
+  }
+
   function render() {
     destroyCalendar();
     const events = (currentData && currentData.events) || [];
-    const shown = calendarEvents(events);
+    const { over, upcoming } = split(events);
+    const shown = calendarEvents(over, upcoming);
     // Open on the next ride's month; with nothing upcoming, on the most recent
     // one — never on the oldest archived ride, which is where shown[0] sits.
-    const focus = events.length
-      ? events[0].start
-      : (pastEvents.length ? pastEvents[pastEvents.length - 1].start : null);
+    const finished = pastEvents.concat(over);
+    const focus = upcoming.length
+      ? upcoming[0].start
+      : (finished.length ? finished[finished.length - 1].start : null);
     schedule.textContent = "";
     if (!shown.length) {
       emptyState("No rides on the calendar right now — check Partiful for the next one.");
@@ -140,7 +182,8 @@
         schedule.appendChild(monthGrid(month));
       });
     }
-    setNextRide(events);
+    setNextRide(upcoming);
+    scheduleSwitch(upcoming[0]);
     // The "Last updated …" stamp is the link to the sync workflow. Hide the
     // whole line (not just the text) when there's no updated_at, so there's
     // no empty focusable link.

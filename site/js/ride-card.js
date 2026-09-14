@@ -189,6 +189,21 @@
   }
   BCB.isRolling = isRolling;
 
+  // The other side of the same window: once the grace hour has passed the
+  // ride is over, whatever events.json still says. That file is only as fresh
+  // as the last sync (every 6 hours), so a ride can sit at events[0] for hours
+  // after it ended; app.js asks this before choosing the featured next ride
+  // (issue #13). Same rule as fetch_rides.is_upcoming, from the other end:
+  // upcoming through the last instant of grace_until, over one tick later. No
+  // grace_until means no verdict — the ride is left as the sync published it.
+  function isOver(ev, nowMs) {
+    const endMs = Date.parse((ev && ev.grace_until) || "");
+    if (isNaN(endMs)) { return false; }
+    const now = typeof nowMs === "number" ? nowMs : Date.now();
+    return now > endMs;
+  }
+  BCB.isOver = isOver;
+
   // The shared ride-card builder — used by the featured next-ride card AND the
   // ride-detail modal, so the details and add-to-calendar exports can't drift.
   BCB.rideCard = (ev, extraClass) => {
