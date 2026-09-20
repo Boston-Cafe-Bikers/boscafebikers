@@ -43,6 +43,11 @@
   // nothing in it can be removed. A vector style is a list of layers, so the
   // ones we don't want are simply dropped before the map is built (DROP_LAYERS).
   const STYLE_URL = "https://tiles.openfreemap.org/styles/positron";
+  // MapLibre v6 ships as a small ES-module graph. Keep it same-origin (the
+  // verified npm tarball is vendored under site/vendor/) and import it only
+  // after the café data proves there is a map to draw. A module/WebGL failure
+  // therefore leaves the list — the actual page content — intact.
+  const MAPLIBRE_MODULE_URL = "../vendor/maplibre-gl-6.10.0/maplibre-gl.mjs";
   // Layers deleted from that style, by id. Positron is already grey-on-grey
   // with no motorway colour, no hillshade and no POI symbols; these are what
   // was left of the clutter:
@@ -321,8 +326,8 @@
   }
 
   async function buildMap(groups) {
-    if (!mapBox || !window.maplibregl || !groups.length) { return; }
-    const gl = window.maplibregl;
+    if (!mapBox || !groups.length) { return; }
+    const gl = await import(MAPLIBRE_MODULE_URL);
     const style = await loadStyle();
     if (!style) { return; }
 
@@ -378,19 +383,6 @@
     });
   }
 
-  // MapLibre is a deferred CDN script in <head>, so on a real page it has run
-  // long before this fetch resolves. If it hasn't — slow CDN — wait for its
-  // load event once. If it never arrives, the map box just stays hidden and
-  // the list below is the page, exactly as it was before there was a map.
-  function whenMapReady(callback) {
-    if (window.maplibregl) { callback(); return; }
-    const tag = document.getElementById("maplibre-js");
-    if (!tag) { return; }
-    tag.addEventListener("load", function () {
-      if (window.maplibregl) { callback(); }
-    }, { once: true });
-  }
-
   // A missing or malformed cache is not an error: no coordinates, no map.
   async function loadPoints() {
     try {
@@ -430,10 +422,8 @@
     const points = await loadPoints();
     const groups = pinGroups(sorted, points);
     if (groups.length) {
-      whenMapReady(function () {
-        buildMap(groups).catch(function () {
-          if (mapBox) { mapBox.hidden = true; }
-        });
+      buildMap(groups).catch(function () {
+        if (mapBox) { mapBox.hidden = true; }
       });
     }
   }
