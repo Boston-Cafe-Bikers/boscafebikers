@@ -12,6 +12,14 @@ venv/
 # Ralph loop scratch (lives in ralph/ — do not commit)
 ralph.log
 
+# Working copies of a page kept while comparing two versions of it. They must
+# never live in site/: pages.yml publishes that directory wholesale, so a
+# scratch copy there is a public URL (and tests/test_site_html.py fails it,
+# which is how site/__old.html was caught — it predates the CSP <meta> every
+# published page has to carry). Keep them here instead.
+scratch/
+site/__*.html
+
 # OS
 .DS_Store
 
