@@ -208,6 +208,34 @@ gh workflow run pages.yml --ref master
 gh run watch <run-id>
 ```
 
+### Security headers
+
+GitHub Pages does not support a repository `_headers` file or arbitrary response
+headers. Every page therefore carries two protections that browsers support in
+HTML: a Content Security Policy `<meta http-equiv>` and
+`<meta name="referrer" content="strict-origin-when-cross-origin">`. The CSP
+allows only this site, the pinned FullCalendar file on jsDelivr, OpenFreeMap's
+tile service, and the known Partiful/Firebase/Giphy image hosts. MapLibre is
+vendored under `site/vendor/` so its module graph stays same-origin.
+
+The remaining protections must be added by the CDN/proxy in front of Pages
+(Cloudflare is the natural place for this domain):
+
+```text
+Content-Security-Policy: default-src 'self'; base-uri 'none'; object-src 'none'; script-src 'self' https://cdn.jsdelivr.net; script-src-attr 'none'; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data: blob: https://tiles.openfreemap.org https://assets.getpartiful.com https://*.giphy.com https://firebasestorage.googleapis.com https://storage.googleapis.com https://*.appspot.com; connect-src 'self' https://tiles.openfreemap.org; font-src 'self' data:; worker-src 'self' blob:; frame-src 'none'; frame-ancestors 'none'; form-action 'self' mailto:; upgrade-insecure-requests
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+Referrer-Policy: strict-origin-when-cross-origin
+Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
+```
+
+Enable HSTS only after every subdomain is confirmed to work over HTTPS. The
+header CSP intentionally matches the HTML policy and adds `frame-ancestors`,
+which browsers ignore in a meta-delivered policy. Keeping both CSPs is safe;
+browsers enforce both, so update both copies together when a new resource host
+is introduced.
+
 ### Previewing the `dev` branch
 
 **Preview: <https://cafebikers.org/preview/>**
@@ -305,6 +333,83 @@ Neither touches the network or depends on the system timezone.
 request, and the 6-hourly sync runs the Python one as a gate before it touches
 any ride data.
 
+## The top nav
+
+All seven pages carry the same `.nav` bar, styled once in `site/styles.css`.
+It is the site's header: **the logo at the left end, the tabs at the right**.
+Four things about it are deliberate, and the first has been changed by mistake
+before:
+
+* **It is pinned** (`position: sticky; top: 0`). It was un-pinned on 2026-08-13
+  when "keep the nav pinned" was re-opened meaning the opposite, and pinned
+  again with the hamburger below. `tests/test_site_html.py` now fails if the
+  declarations disappear again.
+* **The logo lives here** (`.nav-brand`), not in a masthead band — `index.html`
+  no longer has a hero at all, and its `<h1>` is a `.visually-hidden` one at the
+  top of `<main>` (the logo is that heading's visible form). It uses
+  `images/evenly-sized-logo.png`, the transparent 500×500 PNG added on `master`
+  on 2026-09-19. Two things about that file shape the CSS:
+  * **Its artwork floats in the middle** — the ink is 263×135 at x120 y177, so
+    over half the file is empty padding and a naive 45px box would render the
+    wordmark at 24×12px. `.logo-window` crops to the ink (`--logo-u` = one
+    source pixel rendered; window = the ink's box; image inside pulled up and
+    left by the crop origin). **Trimming the PNG upstream would delete all of
+    this maths** — it is the better fix if the file is ever regenerated.
+  * **It is transparent and its ink is `#75472e`** — drawn with **no chip or
+    background of its own**, straight onto the bar. That works only because the
+    bar is `#ABD2FF`: the ink is 4.97:1 there, against 2.07:1 (invisible) on the
+    espresso bar it replaced. The bar colour and the bare logo are a matched
+    pair, and a test fails if either moves without the other.
+
+  The **old** `boston-cafe-bikers-logo.jpeg` is still in use elsewhere: every
+  page's `og:image`, and the `.hero .mark` above the six sub-pages' own `<h1>`.
+* **The bar's content box is double the page's**: 1360px against the shared
+  `.wrap`'s 680px. The band was always full-bleed; what widened is the content
+  inside it, so the logo and the tabs sit at opposite ends.
+* **It is `#ABD2FF`** (`--sky`), not espresso. Everything in it is dark-on-light
+  as a result: tab labels are espresso (10.29:1), hover/press tints are
+  translucent espresso rather than foam, and the current tab is a **roast** pill
+  with foam text — crema, the old pill and focus-ring colour, is only 2.34:1 up
+  here, under the 3:1 floor for an element carrying state.
+* **The logo is inset by two tabs** (`--brand-inset: 8rem`, measured from the
+  bar's left edge — the gutter is inside that, not added to it). A tab pill is
+  ~4rem (66–81px at the 18px desktop root). The inset only applies **from
+  900px**: below that it plus a 50px logo push the five tabs onto a second row.
+
+### Spacing, from transalt.org
+
+The bar's rhythm is copied from [transalt.org](https://transalt.org/)'s header,
+measured in headless Chrome on 2026-09-19 at 1440/1280/1200/1024/900/380. What
+that page does, and what we took:
+
+| | transalt.org | here |
+| --- | --- | --- |
+| side gutter | `3vw` (40 @1280, 36 @1200, 31 @1024, 27 @900) | same, floored at 20px |
+| content box | caps at 1200px, centres above it | caps at **1360px** (this site's existing width) |
+| between items | `1.56vw` (23 @1440 … 14 @900) | same, clamped 10–23px |
+| items → right group | `3.1vw` (45 @1440 … 28 @900) | same, clamped 16–45px |
+| nav row height | ~90px desktop, ~72px @900 | **91px** from 900px up |
+| logo | 180×50, fixed at every width | 98×50 from 900px up (our artwork is 1.95:1, not 3.6:1) |
+| logo position | at the plain gutter | inset two tabs — **the one deliberate difference** |
+
+Their `<header>` measures 132–143px because it includes an announcement strip
+above the nav row; the ~90px figure is the row itself. Their logo only *looks*
+inset above 1200px, because the content box centres — dropping
+`--brand-inset: 8rem` from `styles.css` matches them exactly.
+* **Below 560px the five tabs collapse into a hamburger** in the top-right
+  corner: a 44px `.nav-toggle` button that drops a full-width panel over the
+  page (it overlays, so the pinned bar never moves). It closes on a second tap,
+  on any tab, on a tap outside the bar, on Escape (focus goes back to the
+  button), and if the viewport grows past the breakpoint. With the logo on the
+  left and the button on the right, this is the usual phone header.
+
+`site/js/nav.js` is the only script loaded **without** `defer`, from `<head>`:
+it sets `has-js` on `<html>` before the first paint, and the collapsing CSS is
+gated on that class. So if the file ever fails to load, the nav degrades to the
+plain wrapping row of tabs it was before — there is no state where the menu is
+hidden behind a button that does nothing. The breakpoint is written twice, in
+`styles.css` and in `nav.js`; a test asserts the two strings match.
+
 ## Contacting the group
 
 `site/contact.html` has a real "send us a message" form. GitHub Pages is static
@@ -338,6 +443,7 @@ needs touching.
 | `scripts/render_route_maps.py` | Fetch route geometry and write `maps/<uid>.svg` |
 | `site/index.html` | The rides page (calendar, next ride, about, contact) |
 | `site/contact.html` | Contact page — email form that composes a `mailto:` |
+| `site/js/nav.js` | The shared nav's phone hamburger — loaded from `<head>` on every page, no `defer` |
 | `data` branch | The only copy of the generated data: `events.json`, `events-past.json`, `cafe-points.json`, `rides.ics`, `maps/*.svg`, `posters/*.jpg` — laid out like `site/`, written by the sync bot, plus `sync-report.json` (the last run's counts, not published) |
 | `site/events*.json`, `site/rides.ics`, `site/maps/`, `site/posters/` | Where `pull_data.sh` and `pages.yml` put that data; gitignored on the code branches |
 | `tests/fixtures/sample.ics` | Offline fixture: 2 future, 1 past, 1 cancelled |

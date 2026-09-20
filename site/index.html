@@ -4,6 +4,12 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- GitHub Pages cannot set custom response headers, so enforce the browser-
+       supported policy here. HSTS, X-Content-Type-Options and frame-ancestors
+       still belong at the CDN/proxy layer; see README.md. -->
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self'; base-uri 'none'; object-src 'none'; script-src 'self' https://cdn.jsdelivr.net; script-src-attr 'none'; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data: blob: https://tiles.openfreemap.org https://assets.getpartiful.com https://*.giphy.com https://firebasestorage.googleapis.com https://storage.googleapis.com https://*.appspot.com; connect-src 'self' https://tiles.openfreemap.org; font-src 'self' data:; worker-src 'self' blob:; frame-src 'none'; form-action 'self' mailto:; upgrade-insecure-requests">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
   <title>Boston Café Bikers — exploring the city one café at a time</title>
   <meta name="description"
     content="A casual Boston cycling group that rides to cafés. No-drop, all levels, BlueBikes welcome.">
@@ -19,8 +25,19 @@
   <link rel="icon"
     href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 44 32'%3E%3Crect x='2' y='7' width='14' height='17' rx='2.5' fill='%23b07a4a'/%3E%3Cpath d='M16 11 h3.5 a4.5 4.5 0 0 1 0 9 h-3.5' fill='none' stroke='%23b07a4a' stroke-width='3' stroke-linecap='round'/%3E%3Ccircle cx='32' cy='16' r='10' fill='none' stroke='%23b07a4a' stroke-width='3.5'/%3E%3Cline x1='32' y1='6' x2='32' y2='26' stroke='%23b07a4a' stroke-width='3'/%3E%3Cline x1='22' y1='16' x2='42' y2='16' stroke='%23b07a4a' stroke-width='3'/%3E%3Ccircle cx='32' cy='16' r='2.2' fill='%23b07a4a'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="styles.css">
+  <!-- Not defer'd, unlike the scripts at the end of <body>: nav.js sets
+       html.has-js before first paint so the phone nav is already collapsed to
+       its hamburger on the first frame. See the comment at the top of the
+       file for the no-JS fallback. -->
+  <script src="js/nav.js"></script>
   <style>
     /* --- index-specific styles (shared base lives in styles.css) --- */
+
+    /* The masthead band that used to sit here is gone: the logo moved to the
+       left end of the shared nav (see .nav-brand in styles.css), so this page
+       starts straight into its first section. The page's <h1> is now the
+       .visually-hidden one at the top of <main> — the nav's logo is its
+       visible form. */
 
     .btn-ghost {
       background: transparent;
@@ -765,7 +782,17 @@
 
   <nav class="nav" aria-label="Site">
     <div class="wrap">
-      <ul class="tabs">
+      <a class="nav-brand" href="index.html">
+        <span class="logo-window">
+          <img src="images/evenly-sized-logo.png" alt="Boston Café Bikers" width="500" height="500"
+            decoding="async">
+        </span>
+      </a>
+      <button class="nav-toggle" type="button" aria-label="Menu" aria-expanded="false"
+        aria-controls="site-tabs">
+        <span class="bars" aria-hidden="true"></span>
+      </button>
+      <ul class="tabs" id="site-tabs">
         <li><a href="index.html" class="is-active" aria-current="page">Rides</a></li>
         <li><a href="cafes.html">Cafés</a></li>
         <li><a href="gallery.html">Gallery</a></li>
@@ -775,15 +802,11 @@
     </div>
   </nav>
 
-  <!-- The hero is photo-free: it keeps the espresso gradient from styles.css. -->
-  <header class="hero">
-    <div class="wrap">
-      <img class="mark" src="images/boston-cafe-bikers-logo.jpeg" alt="" width="1077" height="1072" decoding="async">
-      <h1>Boston Café Bikers</h1>
-    </div>
-  </header>
-
   <main>
+
+    <!-- The logo in the nav is this heading's visible form; the page still
+         needs one real <h1> for the outline and for assistive tech. -->
+    <h1 class="visually-hidden">Boston Café Bikers</h1>
 
     <!-- data-bg: the café photo URL stays an attribute until app.js copies it
        to background-image after window.load, so it never blocks first paint.

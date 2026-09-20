@@ -17,7 +17,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { createHarness, createContactHarness, makeFullCalendarStub } from "./dom-shim.mjs";
+import {
+  createHarness, createContactHarness, createNavHarness, makeFullCalendarStub
+} from "./dom-shim.mjs";
 
 const PARTIFUL = "https://partiful.com/u/Hs47uq5mucZyXLBJZCda";
 
@@ -788,6 +790,106 @@ test("feed text is set as text, never parsed as markup", async () => {
   assert.equal(card.querySelector("h3").textContent, nasty.title);
   assert.equal(card.querySelectorAll("script").length, 0);
   assert.equal(card.querySelectorAll("img").length, 1, "only the ride banner");
+});
+
+/* ================================================================== *
+ * nav.js — the phone hamburger (standalone, runs from <head>)
+ * ================================================================== */
+
+test("has-js lands before DOMContentLoaded, so the phone nav never flashes open", () => {
+  const h = createNavHarness();
+  // Nothing has fired yet: this is the state of the page while the body is
+  // still being parsed, which is when the CSS decides what to paint.
+  assert.ok(h.doc.documentElement.classList.contains("has-js"));
+  assert.equal(h.isOpen(), false);
+  assert.equal(h.expanded(), "false");
+});
+
+test("the toggle opens and closes the panel, and says so", () => {
+  const h = createNavHarness();
+  h.fireReady();
+
+  h.toggle.click();
+  assert.equal(h.isOpen(), true);
+  assert.equal(h.expanded(), "true");
+
+  h.toggle.click();
+  assert.equal(h.isOpen(), false, "the × closes what the bars opened");
+  assert.equal(h.expanded(), "false");
+});
+
+test("tapping a tab closes the panel before the page navigates", () => {
+  const h = createNavHarness();
+  h.fireReady();
+  h.toggle.click();
+
+  h.links[2].click();
+  assert.equal(h.isOpen(), false);
+  assert.equal(h.expanded(), "false");
+});
+
+test("a click outside the bar dismisses the panel", () => {
+  const h = createNavHarness();
+  h.fireReady();
+  h.toggle.click();
+
+  h.outside.click();
+  assert.equal(h.isOpen(), false);
+
+  // …and a click inside it does not: the toggle's own click bubbles to the
+  // same document listener, which must not undo the open it just did.
+  h.toggle.click();
+  assert.equal(h.isOpen(), true);
+});
+
+test("Escape closes the panel and hands focus back to the toggle", () => {
+  const h = createNavHarness();
+  h.fireReady();
+  h.toggle.click();
+
+  h.doc.dispatchEvent({ type: "keydown", key: "Escape" });
+  assert.equal(h.isOpen(), false);
+  assert.equal(h.doc.activeElement, h.toggle);
+  assert.equal(h.toggle.focusCount, 1);
+});
+
+test("Escape with the panel shut is a no-op — index.html's modal owns that key too", () => {
+  const h = createNavHarness();
+  h.fireReady();
+
+  h.doc.dispatchEvent({ type: "keydown", key: "Escape" });
+  assert.equal(h.isOpen(), false);
+  assert.equal(h.toggle.focusCount, 0, "focus must not be stolen from the modal");
+});
+
+test("growing past the phone breakpoint closes a panel the tabs no longer need", () => {
+  const h = createNavHarness();
+  h.fireReady();
+  h.toggle.click();
+  assert.equal(h.isOpen(), true);
+
+  assert.equal(h.mediaQueries.length, 1);
+  assert.equal(h.mediaQueries[0].media, "(max-width: 559.98px)",
+    "must match the @media block in styles.css");
+  h.mediaQueries[0]._change(false);   // rotated to landscape / resized wider
+  assert.equal(h.isOpen(), false);
+  assert.equal(h.expanded(), "false");
+
+  // Back to phone width: still closed, and the button still works.
+  h.mediaQueries[0]._change(true);
+  assert.equal(h.isOpen(), false);
+  h.toggle.click();
+  assert.equal(h.isOpen(), true);
+});
+
+test("no matchMedia (old Safari) still gets a working toggle", () => {
+  const h = createNavHarness({ withMatchMedia: false });
+  h.fireReady();
+
+  h.toggle.click();
+  assert.equal(h.isOpen(), true);
+  h.toggle.click();
+  assert.equal(h.isOpen(), false);
 });
 
 /* ================================================================== *

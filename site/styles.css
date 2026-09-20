@@ -13,6 +13,11 @@
   --oat:      #e6d5c2;
   --ink:      #33261d;
   --muted:    #7a685a;
+  /* The nav bar's background, given as #ABD2FF. It is a near neighbour of the
+     old logo JPEG's own sky blue (sampled #b6d0f5, which nothing uses now that
+     the masthead band is gone), which is why the transparent logo sits on it
+     without a chip: the artwork's #75472e ink is 4.97:1 against this. */
+  --sky:      #abd2ff;
   --radius:   14px;
   /* Readability "setting" for the photo-backed sections ([data-bg]): the
      espresso scrim's opacity. Raise it to darken the photo more when the text
@@ -150,32 +155,144 @@ a { color: var(--roast); }
 .links a:focus-visible { outline: 2px solid var(--crema); outline-offset: 2px; }
 
 /* --- tab header nav --- */
-/* Static espresso bar that scrolls with the page — the organizer re-opened
-   the earlier "keep the nav pinned" request as its opposite ("make top nav
-   not stay permanently on screen"), so position: sticky / top: 0 were
-   removed (2026-08-13). No JS or page CSS depends on the nav being pinned. */
+/* Pinned sky-blue bar. History, because this has flipped once already: the
+   bar was sticky, then position: sticky / top: 0 were removed (2026-08-13)
+   when the organizer re-opened the earlier "keep the nav pinned" request as
+   its opposite ("make top nav not stay permanently on screen"), and they are
+   back now with the mobile half of the same ask — "keep it pinned on browser,
+   but reduce the nav bar options to an expandable 3-line icon in the top
+   right corner on mobile". The two halves go together: a permanently visible
+   bar is only affordable on a phone because it is one 44px icon instead of a
+   five-pill row.
+   z-index 10 is above the photo-scrim layers ([data-bg] ::before is 0, its
+   .wrap is 1) and below the ride modal's 100 in index.html. */
 .nav {
-  background: var(--espresso);
-  border-bottom: 1px solid rgba(246, 236, 224, .15);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--sky);
+  /* The page behind is latte, only 1.34:1 against the bar, so the bar needs a
+     real edge rather than the old light hairline (which was for espresso). */
+  border-bottom: 1px solid rgba(46, 29, 19, .15);
 }
+/* The bar is the site's header: logo at the left end, tabs at the right
+   (index.html's masthead band was removed — the logo lives here instead).
+
+   The spacing follows transalt.org's header, measured in headless Chrome on
+   2026-09-19 at 1440/1280/1200/1024/900/380:
+
+     side gutter    3vw   (40 @1280, 36 @1200, 31 @1024, 27 @900), and the
+                          content box caps at 1200 and centres above that
+     between items  1.56vw (23 @1440, 20 @1280, 19 @1200, 16 @1024, 14 @900)
+     items -> CTA   3.1vw  (45 @1440, 40 @1280, 37 @1200, 32 @1024, 28 @900)
+     nav row        ~90px at desktop, ~72px at 900 (their 132-143px <header>
+                    includes an announcement strip above the row)
+     logo           180 x 50, fixed — it does not scale with the viewport
+
+   Taken as-is here, except the content box stays at the 1360px this site
+   already uses (double the shared .wrap's 680px) rather than their 1200, and
+   the gutters keep a 20px floor so a 380px phone doesn't get their 11px.
+
+   --brand-inset is the clear space before the logo, measured from the bar's
+   left edge (the gutter is inside it, not added to it): the plain gutter by
+   default, the two tabs asked for earlier once there is room at 900px. Note
+   that transalt itself does NOT inset its logo — it sits at the plain gutter,
+   and only looks inset at >1200px because the content box centres. Dropping
+   `--brand-inset: 8rem` below is all it takes to match them exactly. */
 .nav .wrap {
+  --nav-gutter: max(20px, 3vw);
+  --brand-inset: var(--nav-gutter);
+  max-width: 1360px;
   display: flex;
-  justify-content: center;
-  padding-top: 8px;
-  padding-bottom: 8px;
+  align-items: center;
+  justify-content: space-between;
+  gap: clamp(16px, 3.1vw, 45px);
+  padding-top: 20px;
+  padding-bottom: 20px;
+  padding-right: var(--nav-gutter);
+  padding-left: var(--brand-inset);
 }
+/* Two tabs of space before the logo, and transalt's full-size logo. A tab
+   pill is ~4rem wide (12px + a 5-6 character label at .85rem/600 + 12px;
+   measured 66-81px at the 18px desktop root), so two of them is 8rem. Below
+   900px the inset plus a 50px logo pushes the five tabs onto a second row, so
+   down there the logo shrinks and keeps the plain gutter. */
+@media (min-width: 900px) {
+  .nav .wrap { --brand-inset: 8rem; }
+}
+/* The brand logo (images/evenly-sized-logo.png, added on master 2026-09-19).
+
+   Two things about that file drive everything here:
+
+   * It is 500 x 500 with the artwork floating in the middle — the ink is only
+     263 x 135 at x120 y177, so more than half the file is empty padding.
+     Dropped into a 45px box as-is, the wordmark would render 24 x 12px.
+     .logo-window crops to the ink instead: --logo-u is the rendered size of
+     one source pixel, the window is the ink's own box, and the image sits
+     inside it at full size, pulled up and left by the crop origin. (Trimming
+     the PNG upstream would make this unnecessary and is the better fix.)
+   * Its background is transparent, and no chip is drawn under it — it sits
+     directly on the bar, as asked. That works because the bar is now --sky:
+     the artwork's #75472e ink is 4.97:1 against #ABD2FF (it was 2.07:1, i.e.
+     invisible, against the old espresso bar, which is why a foam chip existed
+     between 2026-09-19 and this change). The bar colour and the bare logo are
+     a matched pair: putting the espresso bar back would hide the logo again.
+
+   It links home like a site logo should; the alt is its accessible name.
+   --logo-ink-h is the rendered height of the artwork: 2.8rem (50px) at
+   desktop, matching transalt's 50px logo, and 2rem below 900px. */
+.nav-brand {
+  --logo-ink-h: 2rem;
+  --logo-u: calc(var(--logo-ink-h) / 135);
+  flex: none;
+  display: flex;
+  align-items: center;
+}
+.nav-brand .logo-window {
+  display: block;
+  position: relative;
+  overflow: hidden;
+  width: calc(263 * var(--logo-u));
+  height: calc(135 * var(--logo-u));
+}
+.nav-brand img {
+  position: absolute;
+  display: block;
+  width: calc(500 * var(--logo-u));
+  height: auto;
+  max-width: none;
+  left: calc(-120 * var(--logo-u));
+  top: calc(-177 * var(--logo-u));
+}
+/* transalt's logo is a flat 50px tall at every desktop width; ours matches it
+   from 900px up, which is also where the two-tab inset comes back. This has to
+   sit AFTER the .nav-brand rule above: same specificity, so source order is
+   what decides. */
+@media (min-width: 900px) {
+  .nav-brand { --logo-ink-h: 2.8rem; }
+}
+/* crema is only 2.34:1 on the sky bar; roast is 8.04:1. */
+.nav-brand:focus-visible { outline: 2px solid var(--roast); outline-offset: 2px; }
+/* The pinned bar covers the top of the viewport, so anything a URL fragment
+   scrolls to has to clear it. 6rem (108px at the 18px desktop root) beats the
+   tallest the bar gets — 90px with transalt's spacing; this replaces the
+   index-only `section { scroll-margin-top: 64px }` that came out with the
+   sticky positioning on 2026-08-13. */
+[id] { scroll-margin-top: 6rem; }
 .nav .tabs {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 4px;
+  /* transalt's 1.56vw between items, floored so the pills never collide and
+     capped at their widest measured 23px. */
+  gap: clamp(10px, 1.56vw, 23px);
   list-style: none;
   margin: 0;
   padding: 0;
 }
 .nav .tabs a {
   display: block;
-  color: var(--oat);
+  color: var(--espresso);
   text-decoration: none;
   font-size: .85rem;
   font-weight: 600;
@@ -183,24 +300,130 @@ a { color: var(--roast); }
   border-radius: 999px;
   white-space: nowrap;
 }
+/* Everything in the bar is dark-on-light now that the bar is --sky. The
+   translucent tints are espresso rather than foam for the same reason: a foam
+   wash over #ABD2FF is invisible. Measured against the bar: espresso text
+   10.29:1, roast 8.04:1, crema only 2.34:1 — which is why crema, the old pill
+   and ring colour, is not used up here any more. */
 .nav .tabs a:hover,
-.nav .tabs a:focus { color: var(--foam); background: rgba(246, 236, 224, .1); }
-.nav .tabs a:active { background: rgba(246, 236, 224, .25); }
-.nav .tabs a:focus-visible { outline: 2px solid var(--crema); outline-offset: 2px; }
+.nav .tabs a:focus { color: var(--roast); background: rgba(46, 29, 19, .08); }
+.nav .tabs a:active { background: rgba(46, 29, 19, .16); }
+.nav .tabs a:focus-visible { outline: 2px solid var(--roast); outline-offset: 2px; }
+/* The current tab: a roast pill (8.04:1 against the bar, so its edge is
+   unmistakable) with foam text on it. crema would have been 2.34:1 — under
+   the 3:1 floor for a UI element that carries state. */
 .nav .tabs a.is-active {
-  background: var(--crema);
-  color: #2b1a10;
+  background: var(--roast);
+  color: var(--foam);
 }
+.nav .tabs a.is-active:hover,
+.nav .tabs a.is-active:focus { background: var(--espresso); color: var(--foam); }
 /* Five tabs (Rides / Cafés / Gallery / Contact / Donate, since the cafés page
    landed 2026-08-23) no longer fit one row at 380px with the default 12px pill
    padding: the row wrapped and left "Donate" alone on a second line, which
    reads as a mistake rather than as a tab bar. Tighten the pill padding, gap
    and type a notch on narrow phones so the five stay on one line; every tab is
    still comfortably wider than a fingertip, and nothing changes from 421px up.
-   The .tabs flex-wrap above stays as the safety net for a sixth tab. */
+   The .tabs flex-wrap above stays as the safety net for a sixth tab.
+   This is now the NO-JS path only: with JS the same widths get the hamburger
+   below, whose panel rules are more specific than these and win regardless of
+   source order. */
 @media (max-width: 420px) {
   .nav .tabs { gap: 2px; }
   .nav .tabs a { padding: 6px 9px; font-size: .82rem; }
+}
+
+/* --- the phone hamburger --- */
+/* The button is display:none by default and only the mobile query below turns
+   it on, so a wide viewport never sees it. Everything that collapses the tabs
+   is additionally gated on html.has-js, which js/nav.js sets synchronously
+   from <head> (a plain, non-deferred script, so the class is on the element
+   before first paint — no flash of an expanded menu, and no way to end up with
+   a hidden menu and no working button if the file 404s: without the class the
+   tabs stay the plain wrapping row above). */
+.nav-toggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  /* 44px square: the tap target is the button itself, not the 20px glyph. */
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--espresso);
+  cursor: pointer;
+}
+.nav-toggle:hover,
+.nav-toggle:focus { color: var(--roast); background: rgba(46, 29, 19, .08); }
+.nav-toggle:focus-visible { outline: 2px solid var(--roast); outline-offset: 2px; }
+/* Three bars from one span: the element is the middle bar, its ::before and
+   ::after are the outer two. currentColor, so the hover/open colour above
+   drives all three. */
+.nav-toggle .bars,
+.nav-toggle .bars::before,
+.nav-toggle .bars::after {
+  display: block;
+  width: 20px;
+  height: 2px;
+  border-radius: 2px;
+  background: currentColor;
+}
+.nav-toggle .bars { position: relative; }
+.nav-toggle .bars::before,
+.nav-toggle .bars::after { content: ""; position: absolute; left: 0; }
+.nav-toggle .bars::before { top: -6px; }
+.nav-toggle .bars::after { top: 6px; }
+/* Open: the same three bars become the × that closes the panel — the middle
+   one goes transparent and the outer two meet in the centre and cross. */
+.nav.is-open .nav-toggle { color: var(--roast); background: rgba(46, 29, 19, .14); }
+.nav.is-open .nav-toggle .bars { background: transparent; }
+.nav.is-open .nav-toggle .bars::before { top: 0; transform: rotate(45deg); }
+.nav.is-open .nav-toggle .bars::after { top: 0; transform: rotate(-45deg); }
+
+/* Phone width. 560px is the site's existing phone/desktop step (the hero and
+   section padding change at the same place), and .98 keeps a 559.5px viewport
+   from falling between this and a min-width: 560px rule. */
+@media (max-width: 559.98px) {
+  html.has-js .nav .wrap {
+    /* Logo left, icon in the top-right corner (space-between, from the base
+       rule); the panel below is full-bleed, so it doesn't care about this.
+       transalt's 20px desktop padding around a 44px button would make a 84px
+       bar on a phone; 8px keeps it at 60px. */
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+  html.has-js .nav-toggle { display: inline-flex; }
+  /* The panel is absolutely positioned against .nav (sticky counts as
+     positioned), so opening it overlays the page instead of shoving it down —
+     the bar stays exactly where it is pinned. */
+  html.has-js .nav .tabs {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    flex-direction: column;
+    gap: 2px;
+    padding: 6px 20px 10px;
+    /* The panel is the bar continued downwards, so it takes the bar's colour
+       and a darker shadow to lift it off the page behind. */
+    background: var(--sky);
+    border-bottom: 1px solid rgba(46, 29, 19, .15);
+    box-shadow: 0 8px 16px rgba(46, 29, 19, .28);
+    /* Five items can't reach this, but a sixth tab shouldn't run off-screen. */
+    max-height: 70vh;
+    overflow-y: auto;
+  }
+  html.has-js .nav.is-open .tabs { display: flex; }
+  /* Full-width rows at ~46px tall: the panel has the space the pill row never
+     had, so tap targets get bigger here, not smaller. */
+  html.has-js .nav .tabs a {
+    padding: 12px;
+    border-radius: 10px;
+    font-size: .95rem;
+  }
 }
 
 /* --- sections --- */
@@ -219,6 +442,22 @@ section h2 { font-size: 1.6rem; }
   margin: 0 0 1rem;
   font-weight: 600;
   color: var(--roast);
+}
+
+/* Screen-reader-only text. index.html's <h1> uses it: the heading's visible
+   form is the logo in the nav, but the page still needs one real <h1> in the
+   outline now that the masthead band is gone. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 footer {
