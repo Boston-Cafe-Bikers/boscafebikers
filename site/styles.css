@@ -56,37 +56,26 @@ h1, h2, h3 {
 
 a { color: var(--roast); }
 
-/* --- hero --- */
-/* The espresso gradient is the no-JS / pre-load fallback: the hero photo is
-   deferred (app.js copies the [data-bg] URL into background-image only after
-   window.load), so this gradient is what renders on first paint and for
-   anyone without JS. */
+/* --- page title (the six sub-pages) --- */
+/* `.hero` is now just each sub-page's title, sitting on the page background.
+   It used to be an espresso-gradient band with the logo (`.hero .mark`) above
+   the <h1> and, before that, a photo slot. All of that is gone:
+
+   * the duplicate logo went when the brand moved into the shared bar, and
+   * the dark band went with it — against the light blue bar it read as a
+     second, competing header rather than as the top of the page.
+
+   So no background, no light-on-dark text (the inherited --ink is right for
+   the latte page), and no bottom padding: the first section's own 40/56px of
+   top padding is the gap under the title. `.hero .tagline` and `.hero a` went
+   with the band — nothing used either once index.html stopped having a hero.
+   index.html still has no .hero at all: its <h1> is the .visually-hidden one,
+   whose visible form is the logo in the bar. */
 .hero {
-  background: linear-gradient(160deg, var(--roast) 0%, var(--espresso) 100%);
-  color: var(--foam);
-  padding: 32px 0 24px;
+  padding: 32px 0 0;
   text-align: center;
 }
 .hero h1 { font-size: clamp(1.7rem, 7vw, 2.4rem); letter-spacing: -.01em; }
-.hero .tagline {
-  font-size: 1rem;
-  color: var(--oat);
-  margin: 0;
-}
-/* The mark is the group's logo (its Partiful profile picture): a small
-   rounded square — an accent above the h1, not a second title, so it is
-   sized in rem like the old pictogram was (3rem: 48px on a phone, 54px
-   at the desktop root size). width/height attributes on the <img> only
-   fix the aspect ratio so nothing shifts before it loads. */
-.hero .mark {
-  display: block;
-  width: 3rem;
-  height: 3rem;
-  margin: 0 auto .5rem;
-  border-radius: 25%;
-  object-fit: cover;
-}
-.hero a { color: var(--foam); }
 
 /* --- photo-backed sections ([data-bg]) --- */
 /* Any section carrying a data-bg attribute (app.js copies the URL into
@@ -503,7 +492,7 @@ footer .footer-social .sep {
 }
 
 @media (min-width: 560px) {
-  .hero { padding: 48px 0 32px; }
+  .hero { padding: 48px 0 0; }
   section { padding: 56px 0; }
 }
 

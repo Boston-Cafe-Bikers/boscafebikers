@@ -300,6 +300,28 @@ def test_page_carries_the_logo_at_the_left_of_the_nav(path: Path):
 
 
 @pytest.mark.parametrize("path", SHIPPED, ids=SHIPPED_IDS)
+def test_the_logo_appears_once_per_page(path: Path):
+    """One logo per page, and it is the nav's.
+
+    The sub-pages used to repeat it as ``.hero .mark`` above their own ``<h1>``,
+    which after the logo moved into the shared bar meant two different logos
+    (the new transparent PNG, then the old sky-blue-tiled JPEG) stacked a few
+    pixels apart.
+    """
+    imgs = [
+        attrs for tag, attrs, _ in parse(path).elements
+        if tag == "img" and "logo" in attrs.get("src", "")
+    ]
+    assert len(imgs) == 1, (
+        f"{path.name} has {len(imgs)} logo images: {[i.get('src') for i in imgs]}"
+    )
+    assert imgs[0].get("src") == NAV_LOGO
+    assert "mark" not in imgs[0].get("class", "").split(), (
+        f"{path.name}: the hero mark is gone; the nav brand is the only logo"
+    )
+
+
+@pytest.mark.parametrize("path", SHIPPED, ids=SHIPPED_IDS)
 def test_page_has_exactly_one_h1(path: Path):
     """index.html lost its visible ``<h1>`` with the masthead band.
 

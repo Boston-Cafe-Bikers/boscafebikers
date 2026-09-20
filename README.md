@@ -361,8 +361,15 @@ before:
     espresso bar it replaced. The bar colour and the bare logo are a matched
     pair, and a test fails if either moves without the other.
 
-  The **old** `boston-cafe-bikers-logo.jpeg` is still in use elsewhere: every
-  page's `og:image`, and the `.hero .mark` above the six sub-pages' own `<h1>`.
+  It appears **once per page** — a test enforces that. The six sub-pages used to
+  repeat the old logo as `.hero .mark` above their own `<h1>`; that came out
+  when the brand moved into the bar, and the espresso band behind it came out
+  too (against the light blue bar it read as a second, competing header). A
+  sub-page's `.hero` is now just its title on the page background — no
+  gradient, no light-on-dark text, no bottom padding, since the first section's
+  own 40/56px of top padding is the gap. `.hero .tagline` and `.hero a` went
+  with it; nothing used either. The **old** `boston-cafe-bikers-logo.jpeg`
+  survives in exactly one place: every page's `og:image` (the link preview).
 * **The bar's content box is double the page's**: 1360px against the shared
   `.wrap`'s 680px. The band was always full-bleed; what widened is the content
   inside it, so the logo and the tabs sit at opposite ends.
