@@ -1,26 +1,7 @@
 {
-  "updated_at": "2026-09-13T16:14:21.928188-04:00",
-  "count": 3,
+  "updated_at": "2026-09-20T16:14:59.391151-04:00",
+  "count": 2,
   "events": [
-    {
-      "uid": "QEVwg0dzu9q53uZmusrF",
-      "title": "Broadway Bound",
-      "start": "2026-09-20T11:00:00-04:00",
-      "end": null,
-      "date_display": "Sunday, September 20",
-      "time_display": "11:00 am",
-      "location": null,
-      "location_hidden": false,
-      "location_url": "https://maps.app.goo.gl/SHnpKYA1WpN91ArZ9?g_st=ic",
-      "description": "Sadly we’re not riding to the theatre, but you will get to see how well the new bike lanes on Broadway perform!!!! Come with us on a ride with Cambridge Bike Safety and Boston Cyclists Union to showcase the new bike lanes along Broadway in Cambridge!!!",
-      "rsvp_url": "https://partiful.com/e/QEVwg0dzu9q53uZmusrF",
-      "image": "https://media0.giphy.com/media/CzElTaaUpOZP49UVpc/giphy.gif?cid=c00e53c6bzipjzwde0w7mmb9kzpc254jxdf871kxsqmvypn9&ep=v1_gifs_search&rid=giphy.gif&ct=g",
-      "routes": [],
-      "grace_until": "2026-09-20T12:00:00-04:00",
-      "place_name": null,
-      "address": null,
-      "year": "2026"
-    },
     {
       "uid": "AU6ZZDL8Ao8fgsHlMbYJ",
       "title": "Dazed at Dudley Cafe",
