@@ -566,6 +566,110 @@ export function createHarness({ routes = {}, FullCalendar = undefined } = {}) {
   };
 }
 
+// nav.js is the other standalone script (no window.BCB either) and runs from
+// <head> on all seven pages, so it gets the shared chrome and nothing else:
+// the .nav, its .nav-toggle button and the #site-tabs list. `readyState`
+// starts at "loading" exactly as it is when a non-defer'd head script runs,
+// so the harness has to call fireReady() to get past DOMContentLoaded — which
+// is the point: `has-js` must already be set before that.
+export function createNavHarness({ matches = true, withMatchMedia = true } = {}) {
+  const doc = new ShimDocument();
+
+  const nav = doc.createElement("nav");
+  nav.className = "nav";
+  nav.setAttribute("aria-label", "Site");
+  const wrap = doc.createElement("div");
+  wrap.className = "wrap";
+
+  const toggle = doc.createElement("button");
+  toggle.className = "nav-toggle";
+  toggle.setAttribute("type", "button");
+  toggle.setAttribute("aria-label", "Menu");
+  toggle.setAttribute("aria-expanded", "false");
+  toggle.setAttribute("aria-controls", "site-tabs");
+  const bars = doc.createElement("span");
+  bars.className = "bars";
+  bars.setAttribute("aria-hidden", "true");
+  toggle.appendChild(bars);
+
+  const tabs = doc.createElement("ul");
+  tabs.className = "tabs";
+  tabs.id = "site-tabs";
+  const links = ["index.html", "cafes.html", "gallery.html", "contact.html", "donate.html"]
+    .map((href) => {
+      const li = doc.createElement("li");
+      const a = doc.createElement("a");
+      a.setAttribute("href", href);
+      li.appendChild(a);
+      tabs.appendChild(li);
+      return a;
+    });
+
+  wrap.appendChild(toggle);
+  wrap.appendChild(tabs);
+  nav.appendChild(wrap);
+  doc.body.appendChild(nav);
+
+  // Somewhere to click that is not the nav.
+  const outside = doc.createElement("main");
+  doc.body.appendChild(outside);
+
+  const mediaQueries = [];
+  const sandbox = {
+    document: doc,
+    console,
+    setTimeout,
+    clearTimeout,
+    location: { href: "" },
+    addEventListener() {},
+    removeEventListener() {}
+  };
+  if (withMatchMedia) {
+    sandbox.matchMedia = (query) => {
+      const listeners = [];
+      const mq = {
+        media: query,
+        matches,
+        addEventListener(type, fn) { if (type === "change") { listeners.push(fn); } },
+        removeEventListener(type, fn) {
+          const i = listeners.indexOf(fn);
+          if (type === "change" && i !== -1) { listeners.splice(i, 1); }
+        },
+        // Fire the change every registered listener is waiting for.
+        _change(nowMatches) {
+          mq.matches = nowMatches;
+          listeners.slice().forEach((fn) => fn({ matches: nowMatches, media: query }));
+        }
+      };
+      mediaQueries.push(mq);
+      return mq;
+    };
+  }
+
+  const context = vm.createContext(sandbox);
+  vm.runInContext("globalThis.window = globalThis;", context, { filename: "dom-shim:window" });
+  const file = path.join(SITE_JS, "nav.js");
+  vm.runInContext(fs.readFileSync(file, "utf8"), context, { filename: file });
+
+  return {
+    doc,
+    nav,
+    toggle,
+    tabs,
+    links,
+    outside,
+    context,
+    mediaQueries,
+    isOpen: () => nav.classList.contains("is-open"),
+    expanded: () => toggle.getAttribute("aria-expanded"),
+    // What the browser does once the body has been parsed.
+    fireReady() {
+      doc.readyState = "interactive";
+      doc.dispatchEvent({ type: "DOMContentLoaded" });
+    }
+  };
+}
+
 // contact.js is standalone (it never touches window.BCB), so it gets its own
 // tiny page rather than the rides skeleton.
 export function createContactHarness({ action = "mailto:boscafebikers@gmail.com" } = {}) {

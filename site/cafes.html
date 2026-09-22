@@ -4,6 +4,12 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- GitHub Pages cannot set custom response headers, so enforce the browser-
+       supported policy here. HSTS, X-Content-Type-Options and frame-ancestors
+       still belong at the CDN/proxy layer; see README.md. -->
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self'; base-uri 'none'; object-src 'none'; script-src 'self' https://cdn.jsdelivr.net; script-src-attr 'none'; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data: blob: https://tiles.openfreemap.org https://assets.getpartiful.com https://*.giphy.com https://firebasestorage.googleapis.com https://storage.googleapis.com https://*.appspot.com; connect-src 'self' https://tiles.openfreemap.org; font-src 'self' data:; worker-src 'self' blob:; frame-src 'none'; form-action 'self' mailto:; upgrade-insecure-requests">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
   <title>Cafés — Boston Café Bikers</title>
   <meta name="description" content="Café we've visited.">
   <link rel="canonical" href="https://cafebikers.org/cafes.html">
@@ -18,20 +24,15 @@
   <link rel="icon"
     href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 44 32'%3E%3Crect x='2' y='7' width='14' height='17' rx='2.5' fill='%23b07a4a'/%3E%3Cpath d='M16 11 h3.5 a4.5 4.5 0 0 1 0 9 h-3.5' fill='none' stroke='%23b07a4a' stroke-width='3' stroke-linecap='round'/%3E%3Ccircle cx='32' cy='16' r='10' fill='none' stroke='%23b07a4a' stroke-width='3.5'/%3E%3Cline x1='32' y1='6' x2='32' y2='26' stroke='%23b07a4a' stroke-width='3'/%3E%3Cline x1='22' y1='16' x2='42' y2='16' stroke='%23b07a4a' stroke-width='3'/%3E%3Ccircle cx='32' cy='16' r='2.2' fill='%23b07a4a'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="styles.css">
-  <!-- MapLibre GL JS 5.24.0 (BSD-3-Clause) from jsDelivr, pinned + SRI, `defer`
-       like the rides page's FullCalendar — the site's one framework exception,
-       and the only way to get a real pan/zoom map with no build step and no API
-       key. It replaced Leaflet (2026-08-24) because the basemap had to become a
-       *vector* style: raster tiles are finished pictures, so the red highways,
-       the hill markers and the neighbourhood labels the organizer asked us to
-       drop could not be removed from them. See js/cafes.js DROP_LAYERS.
-       If the CDN is unreachable the script simply never runs: cafes.js leaves
-       #cafe-map hidden and the café list below it is untouched. -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.0/dist/maplibre-gl.css"
-    integrity="sha384-uTttxo/aOKbdE5RlD/SPzSDoDmNvGlUYPjONi2MN/b7c9HPSvW07OIuyP7uL6jxK" crossorigin="anonymous">
-  <script id="maplibre-js" src="https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.0/dist/maplibre-gl.js"
-    integrity="sha384-5+cfbwT0iiub6VsQAdn6yz16nr6sDiQoHx6tm4O8OVYXHYOxcffFmCJBL0dgdvGp" crossorigin="anonymous"
-    defer></script>
+  <!-- Not defer'd: nav.js sets html.has-js before first paint so the phone
+       nav is already collapsed to its hamburger on the first frame. -->
+  <script src="js/nav.js"></script>
+  <!-- MapLibre GL JS 6.10.0 (BSD-3-Clause), upgraded past the 6.4.1 security
+       fix and vendored because v6 is an ES-module graph rather than one UMD
+       file. cafes.js imports it only when a map can be drawn, so a module/WebGL
+       failure still leaves the café list intact. See vendor/maplibre-gl-6.10.0/
+       LICENSE.txt and js/cafes.js. -->
+  <link rel="stylesheet" href="vendor/maplibre-gl-6.10.0/maplibre-gl.css">
   <style>
     /* --- cafés-page styles (shared base lives in styles.css) --- */
 
@@ -293,7 +294,17 @@
 
   <nav class="nav" aria-label="Site">
     <div class="wrap">
-      <ul class="tabs">
+      <a class="nav-brand" href="index.html">
+        <span class="logo-window">
+          <img src="images/evenly-sized-logo.png" alt="Boston Café Bikers" width="500" height="500"
+            decoding="async">
+        </span>
+      </a>
+      <button class="nav-toggle" type="button" aria-label="Menu" aria-expanded="false"
+        aria-controls="site-tabs">
+        <span class="bars" aria-hidden="true"></span>
+      </button>
+      <ul class="tabs" id="site-tabs">
         <li><a href="index.html">Rides</a></li>
         <li><a href="cafes.html" class="is-active" aria-current="page">Cafés</a></li>
         <li><a href="gallery.html">Gallery</a></li>
@@ -305,7 +316,6 @@
 
   <header class="hero">
     <div class="wrap">
-      <img class="mark" src="images/boston-cafe-bikers-logo.jpeg" alt="" width="1077" height="1072" decoding="async">
       <h1>Where we've been</h1>
     </div>
   </header>
