@@ -1,26 +1,7 @@
 {
-  "updated_at": "2026-09-25T07:02:11.843111-04:00",
-  "count": 2,
+  "updated_at": "2026-09-26T16:36:07.821596-04:00",
+  "count": 1,
   "events": [
-    {
-      "uid": "AU6ZZDL8Ao8fgsHlMbYJ",
-      "title": "Dazed at Dudley Cafe",
-      "start": "2026-09-26T11:00:00-04:00",
-      "end": null,
-      "date_display": "Saturday, September 26",
-      "time_display": "11:00 am",
-      "location": null,
-      "location_hidden": false,
-      "location_url": "https://maps.app.goo.gl/JkmHFdjbpnizbEC76?g_st=ic",
-      "description": "If you go too hard on Friday night you’re gonna be dazed when you finish the ride to Dudley Cafe with us 🤪 jk you probably won’t cuz it’s at 11 am on Saturday and it’s not that long of a ride",
-      "rsvp_url": "https://partiful.com/e/AU6ZZDL8Ao8fgsHlMbYJ",
-      "image": "https://media1.giphy.com/media/gKHGnB1ml0moQdjhEJ/giphy.gif?cid=c00e53c64hx3285pnni6hj1de87xo3wtem31a3vc232lm1i5&ep=v1_gifs_search&rid=giphy.gif&ct=g",
-      "routes": [],
-      "grace_until": "2026-09-26T12:00:00-04:00",
-      "place_name": null,
-      "address": null,
-      "year": "2026"
-    },
     {
       "uid": "V8yrXesgubVmuTgHoWYc",
       "title": "Sunday Scaries Picnic",
