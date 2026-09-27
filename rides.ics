@@ -24,16 +24,4 @@ DTSTART:19701101T020000
 RRULE:FREQ=YEARLY;BYMONTH=11;BYDAY=1SU
 END:STANDARD
 END:VTIMEZONE
-BEGIN:VEVENT
-UID:V8yrXesgubVmuTgHoWYc
-DTSTAMP:20260926T203607Z
-DTSTART;TZID=America/New_York:20260927T170000
-SUMMARY:Sunday Scaries Picnic
-LOCATION:Somerville Junction Park\, 3 Woodbine St\, Somerville\, MA
-DESCRIPTION:Show up at the junction park and come hang before we start the 
- week up again!!! Bring snacks\, food\, games\, speakers\, whatever you wan
- t\, it’s a Sunday evening picnic party :)\n\nRSVP: https://partiful.com/
- e/V8yrXesgubVmuTgHoWYc
-URL:https://partiful.com/e/V8yrXesgubVmuTgHoWYc
-END:VEVENT
 END:VCALENDAR

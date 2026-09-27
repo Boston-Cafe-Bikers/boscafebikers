@@ -1,25 +1,5 @@
 {
-  "updated_at": "2026-09-26T16:36:07.821596-04:00",
-  "count": 1,
-  "events": [
-    {
-      "uid": "V8yrXesgubVmuTgHoWYc",
-      "title": "Sunday Scaries Picnic",
-      "start": "2026-09-27T17:00:00-04:00",
-      "end": null,
-      "date_display": "Sunday, September 27",
-      "time_display": "5:00 pm",
-      "location": "Somerville Junction Park, 3 Woodbine St, Somerville, MA",
-      "location_hidden": false,
-      "location_url": null,
-      "description": "Show up at the junction park and come hang before we start the week up again!!! Bring snacks, food, games, speakers, whatever you want, it’s a Sunday evening picnic party :)",
-      "rsvp_url": "https://partiful.com/e/V8yrXesgubVmuTgHoWYc",
-      "image": "https://media3.giphy.com/media/D68RsdeUQBVzQJd7gP/giphy.gif?cid=c00e53c67dfx1gmcaay07mvnioq84b5p2k0lw3jrpfhw87xv&ep=v1_gifs_search&rid=giphy.gif&ct=g",
-      "routes": [],
-      "grace_until": "2026-09-27T18:00:00-04:00",
-      "place_name": "Somerville Junction Park",
-      "address": "3 Woodbine St, Somerville, MA",
-      "year": "2026"
-    }
-  ]
+  "updated_at": "2026-09-27T16:48:18.412236-04:00",
+  "count": 0,
+  "events": []
 }
