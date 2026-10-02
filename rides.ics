@@ -26,13 +26,83 @@ END:STANDARD
 END:VTIMEZONE
 BEGIN:VEVENT
 UID:YOZssqMlLqwhc01wobXQ
-DTSTAMP:20261002T114855Z
+DTSTAMP:20261002T172216Z
 DTSTART;TZID=America/New_York:20261003T100000
 SUMMARY:Central Square Reno Begone
 LOCATION:Carl F Barron Plaza\, Central Square\, Cambridge\, MA
-DESCRIPTION:Starting in Central Square\, we’ll ride just over 3 miles int
- o Boston together\, ending at Sip Cafe in Post Office Square. Be there or 
- be square.\n\nRSVP: https://partiful.com/e/YOZssqMlLqwhc01wobXQ
+DESCRIPTION:Let’s celebrate the reopening of Carl Barron Plaza by filling
+  it up! Starting in Central Square\, we’ll ride just over 3 miles into B
+ oston together\, ending at Sip Cafe in Post Office Square. Be there or be 
+ square.\n\nRSVP: https://partiful.com/e/YOZssqMlLqwhc01wobXQ
 URL:https://partiful.com/e/YOZssqMlLqwhc01wobXQ
+END:VEVENT
+BEGIN:VEVENT
+UID:poFyel6OxdjVYRVI0XDV
+DTSTAMP:20261002T172216Z
+DTSTART;TZID=America/New_York:20261011T100000
+SUMMARY:Cycling Gives You a Cool Butt
+LOCATION:Coolidge Corner\, Brookline\, MA
+DESCRIPTION:More coffee = more cycling. More cycling = better butt. Ride wi
+ th us from Coolidge Corner in Brookline just over 3 miles over to the Butt
+ ery in South End.\n\nRSVP: https://partiful.com/e/poFyel6OxdjVYRVI0XDV
+URL:https://partiful.com/e/poFyel6OxdjVYRVI0XDV
+END:VEVENT
+BEGIN:VEVENT
+UID:ri89Sal9MmXzZygzhcNZ
+DTSTAMP:20261002T172216Z
+DTSTART;TZID=America/New_York:20261018T110000
+SUMMARY:Cummins Hwy Ride
+LOCATION:Forest Hills Station\, Boston\, MA
+DESCRIPTION:These lanes are gorgeous yall\, let’s put them to the test an
+ d ride from Forest Hills station in JP down to Flat Black Coffee in Dorche
+ ster. Come with us and build out your map of your city.\n\nRSVP: https://p
+ artiful.com/e/ri89Sal9MmXzZygzhcNZ
+URL:https://partiful.com/e/ri89Sal9MmXzZygzhcNZ
+END:VEVENT
+BEGIN:VEVENT
+UID:AU2LwcPciWNGRQu9v0k2
+DTSTAMP:20261002T172216Z
+DTSTART;TZID=America/New_York:20261021T180000
+SUMMARY:Streetwise Talk @ Aeronaut
+LOCATION:Aeronaut\, 14 Tyler St\, Somerville\, MA
+DESCRIPTION:Streetwise is monthly speaker series focused on sharing wisdom 
+ along the path to complete streets. Third Wednesday of every month\, 6:30 
+ to 7:30 PM\, live at Aeronaut Brewery. This talk will be shared by Boston 
+ Cafe Biker’s very own Aman Shankardass and Chris Armstrong!\n\nRSVP: htt
+ ps://partiful.com/e/AU2LwcPciWNGRQu9v0k2
+URL:https://partiful.com/e/AU2LwcPciWNGRQu9v0k2
+END:VEVENT
+BEGIN:VEVENT
+UID:kJ7dHkHGj3ZXSU8IfUHD
+DTSTAMP:20261002T172216Z
+DTSTART;TZID=America/New_York:20261024T101500
+SUMMARY:Tour de Streets
+LOCATION:Livable Streets Alliance\, 100 Sidney St\, Cambridge\, MA
+DESCRIPTION:Join us for Tour de Streets!\nTour de Streets is an annual fund
+ raising event\, featuring a walk\, bike ride\, and a celebration with free
+  food\, drinks\, + activities provided by local vendors!\n\nTo ride with B
+ oston Cafe Bikers you must be registered (it’s free!) so use the link ab
+ ove to sign up\n\nThe bike ride is 2 hours long\, ~12 miles starting at 10
+ :15: A leisurely ride for people of all abilities. Includes riding along t
+ he Charles River and on new bicycle infrastructure around Boston\, Cambrid
+ ge \,and Somerville.\n\nDate: Saturday October 24  10:30 AM - 2:30 PM\nLoc
+ ation: LivableStreets Office\, 100 Sidney Street\, Cambridge 02139 (near C
+ entral Square).\n\nThis is a great opportunity to connect with partners an
+ d friends as we celebrate LivableStreets’ accomplishments and ensure we 
+ have the resources to fund our work in the coming years.\n\nRSVP: https://
+ partiful.com/e/kJ7dHkHGj3ZXSU8IfUHD
+URL:https://partiful.com/e/kJ7dHkHGj3ZXSU8IfUHD
+END:VEVENT
+BEGIN:VEVENT
+UID:2lujnt4TCoLinzEYBvVC
+DTSTAMP:20261002T172216Z
+DTSTART;TZID=America/New_York:20261031T110000
+SUMMARY:What’s Scarier Than Mass Ave?
+LOCATION:Central Square\, Cambridge\, MA
+DESCRIPTION:Take your Halloween costume for a test ride from central square
+  down to Bahn Mi Ba Le & Bakery in Dorchester. Let’s give these cars a f
+ right and show up in numbers!\n\nCOSTUMES AND LIGHTS ENCOURAGED\n\nRSVP: h
+ ttps://partiful.com/e/2lujnt4TCoLinzEYBvVC
+URL:https://partiful.com/e/2lujnt4TCoLinzEYBvVC
 END:VEVENT
 END:VCALENDAR
