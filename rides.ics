@@ -24,4 +24,15 @@ DTSTART:19701101T020000
 RRULE:FREQ=YEARLY;BYMONTH=11;BYDAY=1SU
 END:STANDARD
 END:VTIMEZONE
+BEGIN:VEVENT
+UID:YOZssqMlLqwhc01wobXQ
+DTSTAMP:20261002T114855Z
+DTSTART;TZID=America/New_York:20261003T100000
+SUMMARY:Central Square Reno Begone
+LOCATION:Carl F Barron Plaza\, Central Square\, Cambridge\, MA
+DESCRIPTION:Starting in Central Square\, we’ll ride just over 3 miles int
+ o Boston together\, ending at Sip Cafe in Post Office Square. Be there or 
+ be square.\n\nRSVP: https://partiful.com/e/YOZssqMlLqwhc01wobXQ
+URL:https://partiful.com/e/YOZssqMlLqwhc01wobXQ
+END:VEVENT
 END:VCALENDAR
