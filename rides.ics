@@ -25,20 +25,8 @@ RRULE:FREQ=YEARLY;BYMONTH=11;BYDAY=1SU
 END:STANDARD
 END:VTIMEZONE
 BEGIN:VEVENT
-UID:YOZssqMlLqwhc01wobXQ
-DTSTAMP:20261002T172216Z
-DTSTART;TZID=America/New_York:20261003T100000
-SUMMARY:Central Square Reno Begone
-LOCATION:Carl F Barron Plaza\, Central Square\, Cambridge\, MA
-DESCRIPTION:Let’s celebrate the reopening of Carl Barron Plaza by filling
-  it up! Starting in Central Square\, we’ll ride just over 3 miles into B
- oston together\, ending at Sip Cafe in Post Office Square. Be there or be 
- square.\n\nRSVP: https://partiful.com/e/YOZssqMlLqwhc01wobXQ
-URL:https://partiful.com/e/YOZssqMlLqwhc01wobXQ
-END:VEVENT
-BEGIN:VEVENT
 UID:poFyel6OxdjVYRVI0XDV
-DTSTAMP:20261002T172216Z
+DTSTAMP:20261003T153842Z
 DTSTART;TZID=America/New_York:20261011T100000
 SUMMARY:Cycling Gives You a Cool Butt
 LOCATION:Coolidge Corner\, Brookline\, MA
@@ -49,7 +37,7 @@ URL:https://partiful.com/e/poFyel6OxdjVYRVI0XDV
 END:VEVENT
 BEGIN:VEVENT
 UID:ri89Sal9MmXzZygzhcNZ
-DTSTAMP:20261002T172216Z
+DTSTAMP:20261003T153842Z
 DTSTART;TZID=America/New_York:20261018T110000
 SUMMARY:Cummins Hwy Ride
 LOCATION:Forest Hills Station\, Boston\, MA
@@ -61,7 +49,7 @@ URL:https://partiful.com/e/ri89Sal9MmXzZygzhcNZ
 END:VEVENT
 BEGIN:VEVENT
 UID:AU2LwcPciWNGRQu9v0k2
-DTSTAMP:20261002T172216Z
+DTSTAMP:20261003T153842Z
 DTSTART;TZID=America/New_York:20261021T180000
 SUMMARY:Streetwise Talk @ Aeronaut
 LOCATION:Aeronaut\, 14 Tyler St\, Somerville\, MA
@@ -74,7 +62,7 @@ URL:https://partiful.com/e/AU2LwcPciWNGRQu9v0k2
 END:VEVENT
 BEGIN:VEVENT
 UID:kJ7dHkHGj3ZXSU8IfUHD
-DTSTAMP:20261002T172216Z
+DTSTAMP:20261003T153842Z
 DTSTART;TZID=America/New_York:20261024T101500
 SUMMARY:Tour de Streets
 LOCATION:Livable Streets Alliance\, 100 Sidney St\, Cambridge\, MA
@@ -95,7 +83,7 @@ URL:https://partiful.com/e/kJ7dHkHGj3ZXSU8IfUHD
 END:VEVENT
 BEGIN:VEVENT
 UID:2lujnt4TCoLinzEYBvVC
-DTSTAMP:20261002T172216Z
+DTSTAMP:20261003T153842Z
 DTSTART;TZID=America/New_York:20261031T110000
 SUMMARY:What’s Scarier Than Mass Ave?
 LOCATION:Central Square\, Cambridge\, MA

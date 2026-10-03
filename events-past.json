@@ -1,6 +1,6 @@
 {
-  "updated_at": "2026-09-26T16:36:07.821596-04:00",
-  "count": 39,
+  "updated_at": "2026-10-03T11:38:42.248398-04:00",
+  "count": 40,
   "events": [
     {
       "uid": "zNzLp290WKRSyUhpwGfI",
@@ -1038,6 +1038,26 @@
       "place_name": null,
       "address": null,
       "year": "2026"
+    },
+    {
+      "uid": "YOZssqMlLqwhc01wobXQ",
+      "title": "Central Square Reno Begone",
+      "start": "2026-10-03T10:00:00-04:00",
+      "end": null,
+      "date_display": "Saturday, October 3",
+      "time_display": "10:00 am",
+      "location": "Carl F Barron Plaza, Central Square, Cambridge, MA",
+      "location_hidden": false,
+      "location_url": null,
+      "description": "Let’s celebrate the reopening of Carl Barron Plaza by filling it up! Starting in Central Square, we’ll ride just over 3 miles into Boston together, ending at Sip Cafe in Post Office Square. Be there or be square.",
+      "rsvp_url": "https://partiful.com/e/YOZssqMlLqwhc01wobXQ",
+      "image": "https://firebasestorage.googleapis.com/v0/b/getpartiful.appspot.com/o/external%2Fuser%2FHs47uq5mucZyXLBJZCda%2FvZ2S1gU7WxZOEEofY2Ycm?alt=media&token=250292d8-bf9f-4f6d-9cec-219e0ec6c749",
+      "routes": [],
+      "grace_until": "2026-10-03T11:00:00-04:00",
+      "place_name": "Carl F Barron Plaza",
+      "address": "Central Square, Cambridge, MA",
+      "year": "2026",
+      "poster": "posters/YOZssqMlLqwhc01wobXQ.jpg"
     }
   ]
 }
