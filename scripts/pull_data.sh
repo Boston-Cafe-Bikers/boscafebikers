@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
-# Pull the generated ride data out of the `data` branch into site/.
+# Pull the generated site data out of the `data` branch into site/.
 #
 #     scripts/pull_data.sh [remote]      # remote defaults to origin
 #
-# events.json, events-past.json, cafe-points.json, rides.ics, maps/ and
-# posters/ are not committed on master or dev — the only copy lives on the
-# orphan `data` branch, laid out exactly as it appears inside site/. The sync
-# bot writes it there and pages.yml copies it into the published trees; this is
-# how a local checkout gets its copy, so `python -m http.server -d site` shows
-# real rides.
+# events.json, events-past.json, cafe-points.json, rides.ics, maps/, posters/,
+# instagram-posts.json and instagram/ are not committed on master or dev — the
+# only copy lives on the orphan `data` branch, laid out exactly as it appears
+# inside site/. The sync bot writes it there and pages.yml copies it into the
+# published trees; this is how a local checkout gets real rides and the latest
+# gallery posts.
 #
-# Safe to re-run: it overwrites those six paths and touches nothing else. The
+# Safe to re-run: it overwrites only those generated paths. The
 # data branch's own README.md is deliberately *not* extracted — it documents
 # the branch, it is not part of the site.
 set -euo pipefail
@@ -19,7 +19,7 @@ remote="${1:-origin}"
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 site="$repo_root/site"
 
-paths=(events.json events-past.json cafe-points.json rides.ics maps posters)
+paths=(events.json events-past.json cafe-points.json rides.ics maps posters instagram-posts.json instagram)
 
 echo "pull_data: fetching $remote/data"
 git -C "$repo_root" fetch --quiet "$remote" data

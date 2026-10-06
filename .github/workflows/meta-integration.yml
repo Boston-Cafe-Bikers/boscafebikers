@@ -1,0 +1,45 @@
+name: Test Meta integration
+
+# This is a live credential smoke test, not part of CI: pull requests should
+# stay offline and must not receive repository secrets. Run it after rotating
+# INSTAGRAM_ACCESS_TOKEN or while diagnosing the Meta connection.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: meta-integration-check
+  cancel-in-progress: true
+
+jobs:
+  instagram-profile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out the branch
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install ImageMagick for the gallery thumbnails
+        run: |
+          if ! command -v magick >/dev/null && ! command -v convert >/dev/null; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq --no-install-recommends imagemagick >/dev/null
+          fi
+
+      # Read-only GETs to Meta and its image CDN. The scripts put the token in
+      # an Authorization header (never the URL), verify the group's account and
+      # media permission, and print neither the token nor the numeric account ID.
+      - name: Verify the Instagram credential with Meta
+        env:
+          INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
+          META_EXPECTED_INSTAGRAM_USERNAME: bostoncafebikers
+        run: |
+          python scripts/check_meta_integration.py
+          python scripts/sync_instagram.py --data-dir "$RUNNER_TEMP/instagram"
