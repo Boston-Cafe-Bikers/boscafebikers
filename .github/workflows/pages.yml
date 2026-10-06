@@ -58,7 +58,7 @@ jobs:
           ref: dev
           path: dev-src
 
-      # The ride data is generated, so it is not committed beside the code:
+      # Ride and gallery data are generated, not committed beside the code:
       # the one copy lives on the orphan `data` branch, laid out exactly like
       # site/. Guarded like dev, so a fork without the branch publishes a site
       # with no rides rather than failing.
@@ -69,11 +69,11 @@ jobs:
               "https://github.com/${{ github.repository }}.git" data >/dev/null 2>&1; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
           else
-            echo "No data branch; publishing the pages with no ride data."
+            echo "No data branch; publishing with ride/gallery fallbacks."
             echo "exists=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Check out the ride data
+      - name: Check out the generated site data
         if: steps.datacheck.outputs.exists == 'true'
         uses: actions/checkout@v4
         with:
@@ -104,22 +104,23 @@ jobs:
           PY
             echo "Preview published at <base>/preview/"
           fi
-          # Overlay the ride data onto *both* trees, by explicit path — the
+          # Overlay generated data onto *both* trees, by explicit path — the
           # data branch's own README.md and .git must never reach the artifact.
           # The layout mirrors site/, so the published URLs are unchanged
-          # (…/events.json, …/rides.ics, …/maps/<uid>.svg, …/posters/<uid>.jpg).
+          # (…/events.json, …/rides.ics, …/maps/<uid>.svg,
+          # …/posters/<uid>.jpg and …/instagram/<media-id>.jpg).
           if [ -d data-src ]; then
             for tree in _site _site/preview; do
               [ -d "$tree" ] || continue
-              for path in events.json events-past.json cafe-points.json rides.ics maps posters; do
+              for path in events.json events-past.json cafe-points.json rides.ics maps posters instagram-posts.json instagram; do
                 [ -e "data-src/$path" ] || continue
                 rm -rf "${tree:?}/$path"
                 cp -R "data-src/$path" "$tree/$path"
               done
             done
-            echo "Ride data overlaid from the data branch."
+            echo "Generated data overlaid from the data branch."
           else
-            echo "No ride data checked out; the pages will fall back to the Partiful profile."
+            echo "No generated data checked out; ride and gallery fallbacks remain."
           fi
           find _site -maxdepth 2 -name '*.html' | sort
           ls -l _site/events.json _site/rides.ics 2>/dev/null || true

@@ -4,6 +4,11 @@ name: Test Meta integration
 # stay offline and must not receive repository secrets. Run it after rotating
 # INSTAGRAM_ACCESS_TOKEN or while diagnosing the Meta connection.
 on:
+  # Temporary branch trigger to exercise the media endpoint before merge.
+  # Removed after the live check.
+  push:
+    branches:
+      - jtsai/metaIntegration
   workflow_dispatch:
 
 permissions:
@@ -26,11 +31,13 @@ jobs:
         with:
           python-version: "3.11"
 
-      # One read-only GET to graph.instagram.com. The script puts the token in
-      # an Authorization header (never the URL), checks that it resolves to the
-      # group's account, and does not print the token or the numeric account ID.
+      # Read-only GETs to graph.instagram.com. The scripts put the token in an
+      # Authorization header (never the URL), verify the group's account and
+      # media permission, and print neither the token nor the numeric account ID.
       - name: Verify the Instagram credential with Meta
         env:
           INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
           META_EXPECTED_INSTAGRAM_USERNAME: bostoncafebikers
-        run: python scripts/check_meta_integration.py
+        run: |
+          python scripts/check_meta_integration.py
+          python scripts/sync_instagram.py --data-dir "$RUNNER_TEMP/instagram" --dry-run
