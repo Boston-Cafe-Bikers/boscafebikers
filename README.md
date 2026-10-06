@@ -205,7 +205,8 @@ gh workflow run sync.yml --ref dev -f dry-run=true
 The repository secret `INSTAGRAM_ACCESS_TOKEN` is exercised by a manual,
 read-only smoke test. **Actions → Test Meta integration → Run workflow** (or
 `gh workflow run meta-integration.yml --ref master`) verifies that the token
-resolves to `@bostoncafebikers` and can list the account's media. It does not
+resolves to `@bostoncafebikers`, can list the account's media, and can download
+and resize the nine gallery images into runner-temporary storage. It does not
 publish, edit, or delete anything.
 
 The token is read from the environment and sent in an `Authorization` header;

@@ -4,11 +4,6 @@ name: Test Meta integration
 # stay offline and must not receive repository secrets. Run it after rotating
 # INSTAGRAM_ACCESS_TOKEN or while diagnosing the Meta connection.
 on:
-  # Temporary branch trigger to exercise the media endpoint before merge.
-  # Removed after the live check.
-  push:
-    branches:
-      - jtsai/metaIntegration
   workflow_dispatch:
 
 permissions:

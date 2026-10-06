@@ -145,7 +145,7 @@ jobs:
           # and a plain `git diff` doesn't see untracked ones.
           git add -A .
           if git diff --cached --quiet; then
-            echo "No ride changes; nothing to commit."
+            echo "No generated data changes; nothing to commit."
             echo "changed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -158,7 +158,7 @@ jobs:
 
   # The push above uses GITHUB_TOKEN, which deliberately does not fire `push`
   # workflow triggers — so Pages would never redeploy. Call the deploy workflow
-  # ourselves instead, and only when the rides actually changed. One call
+  # ourselves instead, and only when generated data actually changed. One call
   # republishes both trees: pages.yml checks master, dev and data out by name
   # and overlays the data onto each.
   deploy:

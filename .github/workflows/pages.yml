@@ -60,8 +60,8 @@ jobs:
 
       # Ride and gallery data are generated, not committed beside the code:
       # the one copy lives on the orphan `data` branch, laid out exactly like
-      # site/. Guarded like dev, so a fork without the branch publishes a site
-      # with no rides rather than failing.
+      # site/. Guarded like dev, so a fork without the branch publishes its
+      # built-in ride and gallery fallbacks rather than failing.
       - name: Check whether a data branch exists
         id: datacheck
         run: |
