@@ -1,0 +1,41 @@
+name: Test Meta integration
+
+# This is a live credential smoke test, not part of CI: pull requests should
+# stay offline and must not receive repository secrets. Run it after rotating
+# INSTAGRAM_ACCESS_TOKEN or while diagnosing the Meta connection.
+on:
+  # Temporary branch trigger so this new workflow can verify the secret before
+  # it exists on the default branch. Removed after the first remote check.
+  push:
+    branches:
+      - jtsai/metaIntegration
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: meta-integration-check
+  cancel-in-progress: true
+
+jobs:
+  instagram-profile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out the branch
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # One read-only GET to graph.instagram.com. The script puts the token in
+      # an Authorization header (never the URL), checks that it resolves to the
+      # group's account, and does not print the token or the numeric account ID.
+      - name: Verify the Instagram credential with Meta
+        env:
+          INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
+          META_EXPECTED_INSTAGRAM_USERNAME: bostoncafebikers
+        run: python scripts/check_meta_integration.py

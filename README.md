@@ -182,6 +182,22 @@ summary shows what it would have written:
 gh workflow run sync.yml --ref dev -f dry-run=true
 ```
 
+## Testing the Meta/Instagram credential
+
+The repository secret `INSTAGRAM_ACCESS_TOKEN` is exercised by a manual,
+read-only smoke test. **Actions → Test Meta integration → Run workflow** (or
+`gh workflow run meta-integration.yml --ref master`) makes one request to
+Meta's Instagram Graph API and verifies that the token resolves to
+`@bostoncafebikers`. It does not publish, edit, or delete anything.
+
+The token is read from the environment and sent in an `Authorization` header;
+it is never put in a URL or printed. A missing, placeholder, expired, or
+wrong-account token fails with a short diagnostic. Replace the placeholder
+secret with an Instagram User access token for the professional account before
+expecting the live check to pass. The normal CI suite only unit-tests this
+behavior with injected responses, so secrets are never exposed to pull
+requests and CI remains fully offline.
+
 ## Deploying on GitHub Pages
 
 **Live: <https://cafebikers.org/>**
@@ -441,6 +457,7 @@ needs touching.
 | --- | --- |
 | `scripts/sync.py` | The whole pipeline in one process — every step, in order, writing only what changed |
 | `scripts/pull_data.sh` | Pull the generated ride data off the `data` branch into `site/` (local dev) |
+| `scripts/check_meta_integration.py` | Read-only live check that the Meta token resolves to `@bostoncafebikers` without logging the credential |
 | `scripts/fetch_rides.py` | Fetch + parse the ICS feed → `events.json` |
 | `scripts/promote_events.py` | Copy fetched JSON into place only if the rides changed |
 | `scripts/archive_events.py` | Fold already-happened rides into `events-past.json` |
@@ -462,4 +479,5 @@ needs touching.
 | `.github/workflows/sync.yml` | Cron sync every 6h + manual dispatch (with a dry-run option): tests → `sync.py` → commit to `data`; calls `pages.yml` when rides change |
 | `.github/workflows/pages.yml` | Builds the Pages artifact (`master` at the root, `dev` under `/preview/`, `data` copied into both) and deploys it |
 | `.github/workflows/ci.yml` | Runs both test suites on every push and pull request |
+| `.github/workflows/meta-integration.yml` | Manually dispatched live smoke test for `INSTAGRAM_ACCESS_TOKEN` |
 | `CLAUDE.md` | Conventions, decisions, and gotchas |
