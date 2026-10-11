@@ -1,6 +1,6 @@
 {
-  "updated_at": "2026-10-03T11:38:42.248398-04:00",
-  "count": 40,
+  "updated_at": "2026-10-11T17:25:30.064188-04:00",
+  "count": 41,
   "events": [
     {
       "uid": "zNzLp290WKRSyUhpwGfI",
@@ -1058,6 +1058,26 @@
       "address": "Central Square, Cambridge, MA",
       "year": "2026",
       "poster": "posters/YOZssqMlLqwhc01wobXQ.jpg"
+    },
+    {
+      "uid": "poFyel6OxdjVYRVI0XDV",
+      "title": "Cycling Gives You a Cool Butt",
+      "start": "2026-10-11T10:00:00-04:00",
+      "end": null,
+      "date_display": "Sunday, October 11",
+      "time_display": "10:00 am",
+      "location": "Coolidge Corner, Brookline, MA",
+      "location_hidden": false,
+      "location_url": null,
+      "description": "More coffee = more cycling. More cycling = better butt. Ride with us from Coolidge Corner in Brookline just over 3 miles over to the Buttery in South End.",
+      "rsvp_url": "https://partiful.com/e/poFyel6OxdjVYRVI0XDV",
+      "image": "https://firebasestorage.googleapis.com/v0/b/getpartiful.appspot.com/o/external%2Fuser%2FHs47uq5mucZyXLBJZCda%2F7g3aIBW93worJgVWrETss?alt=media&token=31f25a8e-2b1c-4982-8f84-7e6202f667b0",
+      "routes": [],
+      "grace_until": "2026-10-11T11:00:00-04:00",
+      "place_name": "Coolidge Corner",
+      "address": "Brookline, MA",
+      "year": "2026",
+      "poster": null
     }
   ]
 }
