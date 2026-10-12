@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-10-11T17:25:30.064188-04:00",
+  "updated_at": "2026-10-12T10:18:27.380113-04:00",
   "count": 4,
   "events": [
     {
@@ -34,13 +34,12 @@
       "location_url": null,
       "description": "Streetwise is monthly speaker series focused on sharing wisdom along the path to complete streets. Third Wednesday of every month, 6:30 to 7:30 PM, live at Aeronaut Brewery. This talk will be shared by Boston Cafe Biker’s very own Aman Shankardass and Chris Armstrong!",
       "rsvp_url": "https://partiful.com/e/AU2LwcPciWNGRQu9v0k2",
-      "image": "https://firebasestorage.googleapis.com/v0/b/getpartiful.appspot.com/o/external%2Fuser%2FHs47uq5mucZyXLBJZCda%2FrnT0u8IS0l-9dvjT2xUzq?alt=media&token=78ba3eb9-eff1-4f52-a14b-f7bcf57750c3",
-      "routes": [],
+      "image": null,
+      "routes": null,
       "grace_until": "2026-10-21T19:00:00-04:00",
       "place_name": "Aeronaut",
       "address": "14 Tyler St, Somerville, MA",
-      "year": "2026",
-      "poster": "posters/AU2LwcPciWNGRQu9v0k2.jpg"
+      "year": "2026"
     },
     {
       "uid": "kJ7dHkHGj3ZXSU8IfUHD",
@@ -74,12 +73,13 @@
       "location_url": null,
       "description": "Take your Halloween costume for a test ride from central square down to Bahn Mi Ba Le & Bakery in Dorchester. Let’s give these cars a fright and show up in numbers!\n\nCOSTUMES AND LIGHTS ENCOURAGED",
       "rsvp_url": "https://partiful.com/e/2lujnt4TCoLinzEYBvVC",
-      "image": null,
-      "routes": null,
+      "image": "https://firebasestorage.googleapis.com/v0/b/getpartiful.appspot.com/o/external%2Fuser%2FHs47uq5mucZyXLBJZCda%2F2Rd1eGjCheov9_STnuxeK?alt=media&token=477a6661-48d2-485c-8971-5071f6e47cde",
+      "routes": [],
       "grace_until": "2026-10-31T12:00:00-04:00",
       "place_name": "Central Square",
       "address": "Cambridge, MA",
-      "year": "2026"
+      "year": "2026",
+      "poster": "posters/2lujnt4TCoLinzEYBvVC.jpg"
     }
   ]
 }
