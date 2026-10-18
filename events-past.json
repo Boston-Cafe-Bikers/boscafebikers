@@ -1,6 +1,6 @@
 {
-  "updated_at": "2026-10-11T17:25:30.064188-04:00",
-  "count": 41,
+  "updated_at": "2026-10-18T16:01:31.395422-04:00",
+  "count": 42,
   "events": [
     {
       "uid": "zNzLp290WKRSyUhpwGfI",
@@ -1078,6 +1078,26 @@
       "address": "Brookline, MA",
       "year": "2026",
       "poster": null
+    },
+    {
+      "uid": "ri89Sal9MmXzZygzhcNZ",
+      "title": "Cummins Hwy Ride",
+      "start": "2026-10-18T11:00:00-04:00",
+      "end": null,
+      "date_display": "Sunday, October 18",
+      "time_display": "11:00 am",
+      "location": "Forest Hills Station, Boston, MA",
+      "location_hidden": false,
+      "location_url": null,
+      "description": "These lanes are gorgeous yall, let’s put them to the test and ride from Forest Hills station in JP down to Flat Black Coffee in Dorchester. Come with us and build out your map of your city.",
+      "rsvp_url": "https://partiful.com/e/ri89Sal9MmXzZygzhcNZ",
+      "image": "https://firebasestorage.googleapis.com/v0/b/getpartiful.appspot.com/o/external%2Fuser%2FHs47uq5mucZyXLBJZCda%2FNEnUD5C9Q6jWEvSHf0V_E?alt=media&token=304ac24d-4876-4dcc-84cb-3e8f3e60b3af",
+      "routes": [],
+      "grace_until": "2026-10-18T12:00:00-04:00",
+      "place_name": "Forest Hills Station",
+      "address": "Boston, MA",
+      "year": "2026",
+      "poster": "posters/ri89Sal9MmXzZygzhcNZ.jpg"
     }
   ]
 }
