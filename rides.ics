@@ -26,7 +26,7 @@ END:STANDARD
 END:VTIMEZONE
 BEGIN:VEVENT
 UID:ri89Sal9MmXzZygzhcNZ
-DTSTAMP:20261018T025029Z
+DTSTAMP:20261018T101835Z
 DTSTART;TZID=America/New_York:20261018T110000
 SUMMARY:Cummins Hwy Ride
 LOCATION:Forest Hills Station\, Boston\, MA
@@ -38,7 +38,7 @@ URL:https://partiful.com/e/ri89Sal9MmXzZygzhcNZ
 END:VEVENT
 BEGIN:VEVENT
 UID:AU2LwcPciWNGRQu9v0k2
-DTSTAMP:20261018T025029Z
+DTSTAMP:20261018T101835Z
 DTSTART;TZID=America/New_York:20261021T180000
 SUMMARY:Streetwise Talk @ Aeronaut
 LOCATION:Aeronaut\, 14 Tyler St\, Somerville\, MA
@@ -51,7 +51,7 @@ URL:https://partiful.com/e/AU2LwcPciWNGRQu9v0k2
 END:VEVENT
 BEGIN:VEVENT
 UID:kJ7dHkHGj3ZXSU8IfUHD
-DTSTAMP:20261018T025029Z
+DTSTAMP:20261018T101835Z
 DTSTART;TZID=America/New_York:20261024T101500
 SUMMARY:Tour de Streets
 LOCATION:Livable Streets Alliance\, 100 Sidney St\, Cambridge\, MA
@@ -72,7 +72,7 @@ URL:https://partiful.com/e/kJ7dHkHGj3ZXSU8IfUHD
 END:VEVENT
 BEGIN:VEVENT
 UID:2lujnt4TCoLinzEYBvVC
-DTSTAMP:20261018T025029Z
+DTSTAMP:20261018T101835Z
 DTSTART;TZID=America/New_York:20261031T110000
 SUMMARY:What’s Scarier Than Mass Ave?
 LOCATION:Central Square\, Cambridge\, MA
@@ -83,8 +83,25 @@ DESCRIPTION:Take your Halloween costume for a test ride from central square
 URL:https://partiful.com/e/2lujnt4TCoLinzEYBvVC
 END:VEVENT
 BEGIN:VEVENT
+UID:ei1qCm1ky39oTAswkFDt
+DTSTAMP:20261018T101835Z
+DTSTART;TZID=America/New_York:20261031T200000
+SUMMARY:A Nightmare on Cedar Street II
+LOCATION:204 Cedar St\, 204 Cedar St Apts 2 & 3\, Somerville\, MA
+DESCRIPTION:Want to come to the spookiest event in town??\n\nYou are offici
+ ally invited to our halloween\nparty jointly hosted by the newest resident
+ s of 204 Cedar St. Once again\, we’re pulling out all the stops to creat
+ e the Halloween party of our dreams!!\n\nThe party will be between the sec
+ ond and third floors and front balconies are open. Bring your beautiful fa
+ ces and best costumes. Costumes are REQUIRED!! Pls do not play with us!\n\
+ n+1s\, +2s\, and +3s are welcomed but let us know if it's more than that\n
+ \nCan't wait to see you there!!\n\nRSVP: https://partiful.com/e/ei1qCm1ky3
+ 9oTAswkFDt
+URL:https://partiful.com/e/ei1qCm1ky39oTAswkFDt
+END:VEVENT
+BEGIN:VEVENT
 UID:6mwPWyBbuUJw9ytnlgRY
-DTSTAMP:20261018T025029Z
+DTSTAMP:20261018T101835Z
 DTSTART;TZID=America/New_York:20261122T163000
 SUMMARY:pearson friendsgiving potluck 2.0
 LOCATION:39 Pearson Rd Unit 1\, Somerville\, MA

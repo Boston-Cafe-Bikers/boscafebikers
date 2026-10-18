@@ -1,6 +1,6 @@
 {
-  "updated_at": "2026-10-17T22:50:29.453140-04:00",
-  "count": 5,
+  "updated_at": "2026-10-18T06:18:35.051159-04:00",
+  "count": 6,
   "events": [
     {
       "uid": "ri89Sal9MmXzZygzhcNZ",
@@ -81,6 +81,25 @@
       "address": "Cambridge, MA",
       "year": "2026",
       "poster": "posters/2lujnt4TCoLinzEYBvVC.jpg"
+    },
+    {
+      "uid": "ei1qCm1ky39oTAswkFDt",
+      "title": "A Nightmare on Cedar Street II",
+      "start": "2026-10-31T20:00:00-04:00",
+      "end": null,
+      "date_display": "Saturday, October 31",
+      "time_display": "8:00 pm",
+      "location": "204 Cedar St, 204 Cedar St Apts 2 & 3, Somerville, MA",
+      "location_hidden": false,
+      "location_url": null,
+      "description": "Want to come to the spookiest event in town??\n\nYou are officially invited to our halloween\nparty jointly hosted by the newest residents of 204 Cedar St. Once again, we’re pulling out all the stops to create the Halloween party of our dreams!!\n\nThe party will be between the second and third floors and front balconies are open. Bring your beautiful faces and best costumes. Costumes are REQUIRED!! Pls do not play with us!\n\n+1s, +2s, and +3s are welcomed but let us know if it's more than that\n\nCan't wait to see you there!!",
+      "rsvp_url": "https://partiful.com/e/ei1qCm1ky39oTAswkFDt",
+      "image": "https://assets.partiful.com/posters/halloween-kowgirlklue",
+      "routes": [],
+      "grace_until": "2026-10-31T21:00:00-04:00",
+      "place_name": "204 Cedar St",
+      "address": "204 Cedar St Apts 2 & 3, Somerville, MA",
+      "year": "2026"
     },
     {
       "uid": "6mwPWyBbuUJw9ytnlgRY",
