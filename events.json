@@ -1,6 +1,6 @@
 {
-  "updated_at": "2026-10-12T20:05:26.223330-04:00",
-  "count": 4,
+  "updated_at": "2026-10-17T22:50:29.453140-04:00",
+  "count": 5,
   "events": [
     {
       "uid": "ri89Sal9MmXzZygzhcNZ",
@@ -81,6 +81,25 @@
       "address": "Cambridge, MA",
       "year": "2026",
       "poster": "posters/2lujnt4TCoLinzEYBvVC.jpg"
+    },
+    {
+      "uid": "6mwPWyBbuUJw9ytnlgRY",
+      "title": "pearson friendsgiving potluck 2.0",
+      "start": "2026-11-22T16:30:00-05:00",
+      "end": null,
+      "date_display": "Sunday, November 22",
+      "time_display": "4:30 pm",
+      "location": "39 Pearson Rd Unit 1, Somerville, MA",
+      "location_hidden": false,
+      "location_url": null,
+      "description": "back for its second installment! more details and potluck spreadsheet incoming, plus bills game before if you like extreme heart rate variation!",
+      "rsvp_url": "https://partiful.com/e/6mwPWyBbuUJw9ytnlgRY",
+      "image": "https://assets.partiful.com/posters/gather.png",
+      "routes": [],
+      "grace_until": "2026-11-22T17:30:00-05:00",
+      "place_name": "39 Pearson Rd Unit 1",
+      "address": "Somerville, MA",
+      "year": "2026"
     }
   ]
 }
