@@ -17,8 +17,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # There is one copy of the ride data and it lives on the orphan `data`
-  # branch, laid out exactly like site/. So there is one sync job: it runs the
+  # There is one copy of generated site data on the orphan `data` branch,
+  # laid out exactly like site/. So there is one sync job: it runs the
   # code from whichever ref triggered it and writes the data next door.
   sync:
     runs-on: ubuntu-latest
@@ -35,7 +35,7 @@ jobs:
 
       # The data, beside the code. Second, because a checkout into the
       # workspace root wipes anything already sitting there.
-      - name: Check out the ride data
+      - name: Check out the generated site data
         uses: actions/checkout@v4
         with:
           ref: data
@@ -51,7 +51,7 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      # Thirty seconds of insurance before anything touches ride data: this
+      # Thirty seconds of insurance before anything touches generated data: this
       # runs the triggering ref's scripts/, and dev is where half-finished code
       # lives. The suite is offline (it parses tests/fixtures/sample.ics with a
       # pinned clock), so it needs no secret and cannot flake on the network.
@@ -60,10 +60,10 @@ jobs:
       - name: Check the scripts before touching ride data
         run: python -m pytest tests/ -q
 
-      # ubuntu-latest does not ship ImageMagick (the first real run after the
-      # poster step landed printed the "no ImageMagick" notice and mirrored
-      # nothing). The step is fail-soft either way; this just makes it work.
-      - name: Install ImageMagick for the poster thumbnails
+      # ubuntu-latest does not ship ImageMagick. Ride posters are fail-soft
+      # without it, while the Instagram cache deliberately requires it so the
+      # data branch holds small metadata-stripped JPEGs rather than originals.
+      - name: Install ImageMagick for the image thumbnails
         run: |
           if ! command -v magick >/dev/null && ! command -v convert >/dev/null; then
             sudo apt-get update -qq
@@ -104,9 +104,39 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
           exit "$status"
 
+      # The browser must never see the Meta token. Fetch the nine newest posts
+      # here, mirror their display images into _data/instagram/, and publish
+      # only same-origin paths in instagram-posts.json. A Meta outage or an
+      # expired token must not block ride updates: the last successful gallery
+      # cache stays on the data branch and this step is visibly fail-soft.
+      - name: Sync the Instagram gallery
+        id: instagram
+        continue-on-error: true
+        env:
+          INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
+          DRY_RUN: ${{ github.event.inputs.dry-run }}
+        run: |
+          set -uo pipefail
+          args=(--data-dir _data --limit 9)
+          if [ "${DRY_RUN:-false}" = "true" ]; then
+            args+=(--dry-run)
+          fi
+          log="$RUNNER_TEMP/instagram.log"
+          status=0
+          python scripts/sync_instagram.py "${args[@]}" >"$log" 2>&1 || status=$?
+          cat "$log"
+          {
+            echo "### \`scripts/sync_instagram.py ${args[*]}\`"
+            echo ''
+            echo '```'
+            cat "$log"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$status"
+
       # Committed inside _data, so the only thing this workflow ever writes is
       # the data branch — no bot commit interleaves with the code history.
-      - name: Commit the ride data if changed
+      - name: Commit the generated data if changed
         id: commit
         if: ${{ github.event.inputs.dry-run != 'true' }}
         working-directory: _data
@@ -115,20 +145,20 @@ jobs:
           # and a plain `git diff` doesn't see untracked ones.
           git add -A .
           if git diff --cached --quiet; then
-            echo "No ride changes; nothing to commit."
+            echo "No generated data changes; nothing to commit."
             echo "changed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "Sync rides from Partiful feed"
+          git commit -m "Sync site data from Partiful and Instagram"
           # Plain `git push`: actions/checkout left _data tracking `data`.
           git push
           echo "changed=true" >> "$GITHUB_OUTPUT"
 
   # The push above uses GITHUB_TOKEN, which deliberately does not fire `push`
   # workflow triggers — so Pages would never redeploy. Call the deploy workflow
-  # ourselves instead, and only when the rides actually changed. One call
+  # ourselves instead, and only when generated data actually changed. One call
   # republishes both trees: pages.yml checks master, dev and data out by name
   # and overlays the data onto each.
   deploy:

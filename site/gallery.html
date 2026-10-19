@@ -28,6 +28,7 @@
   <!-- Not defer'd: nav.js sets html.has-js before first paint so the phone
        nav is already collapsed to its hamburger on the first frame. -->
   <script src="js/nav.js"></script>
+  <script src="js/gallery.js" defer></script>
   <style>
     /* --- gallery-specific styles (shared base lives in styles.css) --- */
     .gallery-grid {
@@ -65,6 +66,39 @@
       padding: 8px 12px 10px;
       font-size: .8rem;
       color: var(--muted);
+    }
+
+    .gallery-link {
+      display: block;
+      height: 100%;
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .gallery-link:hover img {
+      opacity: .92;
+    }
+
+    .gallery-link:focus-visible {
+      outline: 3px solid var(--roast);
+      outline-offset: -3px;
+    }
+
+    .instagram-caption {
+      display: -webkit-box;
+      overflow: hidden;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+    }
+
+    .instagram-kind {
+      display: block;
+      margin-top: 5px;
+      color: var(--roast);
+      font-size: .68rem;
+      font-weight: 800;
+      letter-spacing: .05em;
+      text-transform: uppercase;
     }
 
     /* The section CTA button needs breathing room from the grid above. */
@@ -108,9 +142,9 @@
     <section aria-labelledby="gallery-heading">
       <div class="wrap">
         <h2 id="gallery-heading">From the rides</h2>
-        <p class="lede">Rollouts, regroup points, and the coffee at the end. Photos
-          from group rides land here — check Instagram for the latest in the
-          meantime.</p>
+        <p class="lede">Rollouts, regroup points, and the coffee at the end. The
+          latest posts from Instagram land here automatically; the ride photos
+          below stay as a fallback whenever Instagram is unavailable.</p>
 
         <div class="gallery-grid">
           <figure class="gallery-item">
