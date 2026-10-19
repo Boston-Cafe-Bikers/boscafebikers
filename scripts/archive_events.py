@@ -140,9 +140,12 @@ def merge_archive(
     """Fold every already-happened ride from `sources` into `archive`.
 
     Rides already in the archive stay even if a source no longer mentions them
-    — the feed pruning its history must not erase ours. The one exception is
-    `excluded` (UIDs from excluded_events.json): those are dropped wherever
-    they come from, the archive included. Returns a new list sorted by start.
+    — the feed pruning its history must not erase ours. Two exceptions: UIDs in
+    `excluded` (from excluded_events.json) are dropped wherever they come from,
+    the archive included; and a ride carrying ``hosted_by_group: false`` — an
+    event enrichment has already found not to be the group's — is dropped too,
+    so one archived before the host allowlist existed is purged. A ``None`` or
+    missing flag is kept (never checked). Returns a new list sorted by start.
     """
     merged: dict[str, dict] = {}
     order: list[str] = []
@@ -156,6 +159,12 @@ def merge_archive(
                 continue
             key = ride_key(ride)
             if key in excluded:
+                continue
+            # An event enrichment has already found not to be hosted by the
+            # group is history we don't keep either — this is what purges one
+            # that slipped into the archive before the host allowlist existed.
+            # None (never checked) is kept; only a decided False is dropped.
+            if ride.get("hosted_by_group") is False:
                 continue
             if key in merged:
                 merged[key] = merge_ride(merged[key], ride)

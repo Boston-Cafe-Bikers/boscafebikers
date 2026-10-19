@@ -72,6 +72,26 @@ def test_archive_entries_are_kept_without_re_testing_now():
     assert [r["uid"] for r in merged] == ["weird"]
 
 
+def test_a_ride_flagged_not_group_hosted_is_purged():
+    """An event enrichment found to be somebody else's does not stay history."""
+    archive = [
+        ride("ours", "2026-05-02T11:00:00-04:00"),
+        ride("theirs", "2026-05-03T11:00:00-04:00", hosted_by_group=False),
+    ]
+    merged = archive_events.merge_archive(archive, [], NOW)
+    assert [r["uid"] for r in merged] == ["ours"]
+
+
+def test_an_undecided_host_is_never_purged():
+    """None means "never checked" — only a decided False is dropped."""
+    archive = [
+        ride("maybe", "2026-05-02T11:00:00-04:00", hosted_by_group=None),
+        ride("unchecked", "2026-05-03T11:00:00-04:00"),
+    ]
+    merged = archive_events.merge_archive(archive, [], NOW)
+    assert [r["uid"] for r in merged] == ["maybe", "unchecked"]
+
+
 def test_result_is_sorted_by_start():
     sources = [[
         ride("b", "2026-05-20T11:00:00-04:00"),

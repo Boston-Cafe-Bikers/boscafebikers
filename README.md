@@ -96,14 +96,24 @@ stock posters, a Giphy GIF — is left hotlinked, and `image` stays on every rid
 as the fallback. Resizing needs ImageMagick, which the sync workflow installs (ubuntu-latest does not ship it); without it
 the step is skipped and nothing else changes.
 
-**Events that aren't rides.** The calendar export is the organizer's whole
-Partiful calendar, so a birthday or a party can show up in the feed too. To
-keep one off the site — upcoming list, calendar and the past-rides archive
-alike — add its `uid` (the id in its `partiful.com/e/<uid>` link) to
-`scripts/excluded_events.json` with a short note and commit; the next sync
-drops it everywhere, including from `events-past.json` if it was
-already archived. Deleting it from that file by hand doesn't stick: the sync
-would archive it again from the feed.
+**Only the group's own events.** The calendar export is the organizer's
+*whole* Partiful calendar, so it carries events they were merely invited to
+as well. The sync keeps an event only when its Partiful event page lists an
+account in `scripts/group_hosts.json` as a host (`ownerIds`/`owners`/
+`createdBy`); every other event is dropped from the upcoming list, the
+calendar and the past-rides archive. The allowlist holds the group's Partiful
+user id — `Hs47uq5mucZyXLBJZCda`, *Boston Cafe Bikers*, the same id that
+appears in `partiful.com/u/<id>`. Reading the page happens during enrichment,
+so an event whose page can't be read is **kept**, never dropped — a Partiful
+hiccup must not be able to hide a real ride. Each run reports how many events
+it dropped this way.
+
+**Events that are ours but aren't rides.** A group event that shouldn't be on
+the site — a birthday, a party — still needs a manual opt-out: add its `uid`
+(the id in its `partiful.com/e/<uid>` link) to `scripts/excluded_events.json`
+with a short note and commit. The next sync drops it everywhere, including
+from `events-past.json` if it was already archived. Deleting it from that file
+by hand doesn't stick: the sync would archive it again from the feed.
 
 The sync also re-exports every upcoming ride as a public calendar feed at `rides.ics` — subscribe to <https://cafebikers.org/rides.ics> (or the `webcal://` form in Apple Calendar) and new rides appear on their own.
 

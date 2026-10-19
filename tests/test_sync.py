@@ -1006,7 +1006,9 @@ def test_the_report_lands_beside_the_data(data_dir):
         (data_dir / "sync-report.json").read_text(encoding="utf-8")
     )
     assert written == state.report.state()
-    assert written["feed"] == {"upcoming": 2, "past": 1, "excluded": 0}
+    assert written["feed"] == {
+        "upcoming": 2, "past": 1, "excluded": 0, "unhosted": 0,
+    }
     assert written["archive"] == {"rides": 1, "never_checked": 0}
 
 
@@ -1072,6 +1074,42 @@ def test_a_healthy_run_warns_about_nothing(data_dir, capsys):
     out = capsys.readouterr().out
     assert "warning:" not in out and "notice:" not in out
     assert "sync: feed: 2 upcoming" in out
+
+
+# --- the host allowlist -----------------------------------------------------
+
+
+def test_a_non_group_event_is_dropped_from_the_upcoming_list(data_dir):
+    """The feed is the organizer's whole calendar; only group-hosted events stay."""
+    foreign = EVENT_PAGE.replace("Hs47uq5mucZyXLBJZCda", "someoneElse")
+
+    state = sync.run(config(data_dir), **{**SEAMS, "fetch_page": lambda url: foreign})
+    assert state.report.unhosted_skipped == 2
+    assert payload_of(data_dir / "events.json")["events"] == []
+
+
+def test_an_unhosted_event_is_purged_from_the_archive(data_dir):
+    """One archived before the allowlist existed is dropped on the next sync."""
+    already = dict(feed_rides()[0])  # the Charles ride, as if long published
+    already.pop("hosted_by_group", None)
+    write_payload(data_dir / "events-past.json", [already])
+    foreign = EVENT_PAGE.replace("Hs47uq5mucZyXLBJZCda", "someoneElse")
+
+    state = sync.run(config(data_dir), **{**SEAMS, "fetch_page": lambda url: foreign})
+    assert state.report.unhosted_skipped == 2
+    assert "evt-future-charles-loop@partiful.com" not in uids(
+        data_dir / "events-past.json"
+    )
+
+
+def test_every_host_unknown_warns_and_filters_nothing(data_dir, capsys):
+    """A Partiful markup change must be visible, and must never empty the list."""
+    state = sync.run(config(data_dir), **{**SEAMS, "fetch_page": blank_page})
+    assert state.report.host_unknown == state.report.upcoming == 2
+    assert state.report.unhosted_skipped == 0
+    assert (data_dir / "events.json").exists()
+    sync.print_report(state.report, env={})
+    assert "could not tell who hosts" in capsys.readouterr().out
 
 
 def test_an_empty_feed_over_a_stocked_archive_warns(data_dir, tmp_path, capsys):
