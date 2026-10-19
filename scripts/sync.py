@@ -11,6 +11,12 @@ then write only the files
 whose content actually changed. A quiet sync writes zero bytes, which is the
 property the workflow's "commit if changed" guard depends on.
 
+The feed is the organizer's whole Partiful calendar, so it carries events they
+were only invited to. Enrichment reads each event page's hosts and the fetch
+step drops any event no account in ``scripts/group_hosts.json`` hosts (kept
+when a page can't be read); the dropped UIDs are added to the exclusion set the
+archive merge reads, so a non-group event never reaches the past list either.
+
 The order used to live in the YAML of the sync workflow, where nothing could
 test it. It lives in ``STEPS`` now, and tests/test_sync.py reorders that tuple
 to prove each rule still bites:
@@ -55,7 +61,6 @@ import shutil
 import subprocess
 import sys
 import tempfile
-from argparse import Namespace
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -71,17 +76,16 @@ import enrich_archive  # noqa: E402
 import export_ics  # noqa: E402
 import fetch_rides  # noqa: E402
 import geocode_cafes  # noqa: E402
-import promote_events  # noqa: E402
 import render_route_maps  # noqa: E402
 import ride_fields  # noqa: E402
 import route_map  # noqa: E402
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+REPO_ROOT = ride_fields.REPO_ROOT
 DEFAULT_DATA_DIR = REPO_ROOT / "site"
 DEFAULT_URL_PREFIX = render_route_maps.DEFAULT_URL_PREFIX
 DEFAULT_ENRICH_LIMIT = enrich_archive.DEFAULT_LIMIT
 DEFAULT_POSTER_LIMIT = 8
-LOCAL_TZ = fetch_rides.LOCAL_TZ
+LOCAL_TZ = ride_fields.LOCAL_TZ
 
 
 class SyncError(Exception):
@@ -105,6 +109,7 @@ class Config:
     ics_file: Optional[Path] = None
     ride_images: Path = fetch_rides.RIDE_IMAGES_PATH
     excluded_events: Path = fetch_rides.EXCLUDED_EVENTS_PATH
+    group_hosts: Path = fetch_rides.GROUP_HOSTS_PATH
     now: Optional[datetime] = None
     enrich_limit: int = DEFAULT_ENRICH_LIMIT
     poster_limit: int = DEFAULT_POSTER_LIMIT
@@ -116,6 +121,7 @@ class Config:
         self.ics_file = Path(self.ics_file) if self.ics_file else None
         self.ride_images = Path(self.ride_images)
         self.excluded_events = Path(self.excluded_events)
+        self.group_hosts = Path(self.group_hosts)
         self.url_prefix = str(self.url_prefix).strip("/")
         now = self.now or datetime.now(timezone.utc)
         if now.tzinfo is None:
@@ -537,6 +543,11 @@ class Run:
     # Counters the report reads. Each is "what this run did", which is why they
     # are collected here and not recomputed afterwards from the files.
     skipped_uids: set = field(default_factory=set)
+    # UIDs dropped because enrichment found no group account hosting them.
+    unhosted: set = field(default_factory=set)
+    # The Partiful user-id allowlist in force. Empty means no filtering, and
+    # "host unknown" only means something when it isn't empty.
+    group_hosts: set = field(default_factory=set)
     posters_mirrored: int = 0
     posters_skipped: bool = False
     archive_enriched: int = 0
@@ -572,9 +583,7 @@ class Run:
 
 def _load_feed(config: Config) -> bytes:
     """The feed bytes, from --ics-file or from the secret URL. Never logged."""
-    return fetch_rides.load_source(
-        Namespace(ics_file=str(config.ics_file) if config.ics_file else None)
-    )
+    return fetch_rides.load_source(config.ics_file)
 
 
 def step_fetch(run: Run) -> None:
@@ -586,6 +595,8 @@ def step_fetch(run: Run) -> None:
     data = _load_feed(config)
     images = fetch_rides.load_ride_images(config.ride_images)
     run.excluded = fetch_rides.load_excluded_events(config.excluded_events)
+    group_hosts = fetch_rides.load_group_hosts(config.group_hosts)
+    run.group_hosts = group_hosts
     # `skipped` is filled by both passes: it is the sidecar's UIDs that were
     # really in the feed, which is the only excluded number worth reporting.
     rides = fetch_rides.parse_events(
@@ -604,9 +615,22 @@ def step_fetch(run: Run) -> None:
         skipped=run.skipped_uids,
     )
     if run.seams.enrich_enabled:
-        backfilled = fetch_rides.enrich_rides(rides, **run.seams.enrich_kwargs())
+        backfilled = fetch_rides.enrich_rides(
+            rides, **run.seams.enrich_kwargs(), group_hosts=group_hosts
+        )
         if backfilled:
             run.note(f"pulled images for {backfilled} upcoming ride(s)")
+    # The feed is the organizer's whole Partiful calendar, so events they were
+    # only invited to appear here too. Enrichment just read each page's hosts;
+    # drop the ones no group account hosts. The dropped UIDs join `excluded`,
+    # which the archive merge reads, so a non-group event is kept out of the
+    # past list as well. A ride whose page went unread stays (see
+    # filter_unhosted) — a Partiful hiccup must never hide a real ride.
+    rides, unhosted = fetch_rides.filter_unhosted(rides, group_hosts)
+    if unhosted:
+        run.unhosted = unhosted
+        run.excluded |= unhosted
+        run.note(f"dropped {len(unhosted)} event(s) not hosted by the group")
     # The precomputed display fields (grace_until, place_name, address, year,
     # each route's start_name/end_name) — after enrichment, so the routes it
     # just found are named too. Pure functions of what is already stored, so
@@ -657,7 +681,12 @@ def step_enrich_archive(run: Run) -> None:
     batch = enrich_archive.pending(run.archive)[:limit] if limit > 0 else []
     if not batch:
         return
-    fetch_rides.enrich_rides(batch, **run.seams.enrich_kwargs())
+    # Same host allowlist as the upcoming list: recording it on archived rides
+    # is what lets a later run's archive merge purge one that turns out not to
+    # be the group's (see archive_events.merge_archive).
+    fetch_rides.enrich_rides(
+        batch, **run.seams.enrich_kwargs(), group_hosts=run.group_hosts
+    )
     run.archive_enriched = len(batch)
     # The backfill just gave these rides routes; name them now rather than
     # leaving the labels a sync behind.
@@ -807,7 +836,10 @@ def step_promote(run: Run) -> None:
     config = run.config
     committed = run.files.read_json(config.events_path, default=None)
     current = committed.get("events") if isinstance(committed, dict) else None
-    if promote_events.rides_changed(run.payload["events"], current):
+    # Compare the `events` lists and nothing else: `updated_at` is stamped
+    # fresh on every fetch, so a rule that looked at the whole payload would
+    # make the sync commit a new timestamp every 6 hours.
+    if run.payload["events"] != current:
         run.save_events()
     run.promoted = True
 
@@ -868,12 +900,15 @@ class Report:
     upcoming: int = 0
     feed_past: int = 0
     excluded_skipped: int = 0
+    unhosted_skipped: int = 0
     # enrichment of the upcoming list
     enrichment_ran: bool = False
     with_image: int = 0
     with_route: int = 0
     routes_total: int = 0
     routes_measured: int = 0
+    # Upcoming rides enrichment couldn't name a host for (0 when no allowlist).
+    host_unknown: int = 0
     # the archive and its bounded backfill
     archive_size: int = 0
     archive_enriched: int = 0
@@ -923,12 +958,16 @@ class Report:
                 "upcoming": self.upcoming,
                 "past": self.feed_past,
                 "excluded": self.excluded_skipped,
+                # Dropped because no group account hosts them — a property of
+                # the current feed, like `excluded`, so it doesn't churn.
+                "unhosted": self.unhosted_skipped,
             },
             "upcoming": {
                 "with_image": self.with_image,
                 "with_route": self.with_route,
                 "routes": self.routes_total,
                 "routes_measured": self.routes_measured,
+                "host_unknown": self.host_unknown,
             },
             "archive": {
                 "rides": self.archive_size,
@@ -951,10 +990,11 @@ class Report:
         """The compact stdout block, one line per stage of the pipeline."""
         return [
             f"feed: {self.upcoming} upcoming, {self.feed_past} already happened, "
-            f"{self.excluded_skipped} excluded",
+            f"{self.excluded_skipped} excluded, {self.unhosted_skipped} not ours",
             f"upcoming: {self.with_image}/{self.upcoming} with a photo, "
             f"{self.with_route}/{self.upcoming} with a route, "
-            f"{self.routes_measured}/{self.routes_total} route(s) measured",
+            f"{self.routes_measured}/{self.routes_total} route(s) measured, "
+            f"{self.host_unknown} host unknown",
             f"archive: {self.archive_size} ride(s), {self.archive_enriched} backfilled "
             f"this run (limit {self.enrich_limit}), "
             f"{self.archive_unchecked} never checked",
@@ -982,6 +1022,16 @@ class Report:
                 "warning",
                 f"enrichment came back empty: {self.upcoming} upcoming ride(s) "
                 "and not one photo — Partiful's event pages may have changed",
+            ))
+        # Every upcoming ride's host unknown on a live run means the same
+        # markup change the photo warning watches for — nothing would be
+        # filtered, so the non-group events would quietly reappear.
+        if self.enrichment_ran and self.upcoming and self.host_unknown == self.upcoming:
+            notes.append((
+                "warning",
+                f"could not tell who hosts any of the {self.upcoming} upcoming "
+                "ride(s) — Partiful's event pages may have changed, so no "
+                "events were filtered",
             ))
         if not self.upcoming and not self.feed_past and self.archive_size:
             notes.append((
@@ -1117,6 +1167,14 @@ def build_report(state: Run) -> Report:
         upcoming=len(rides),
         feed_past=len(state.feed_past),
         excluded_skipped=len(state.skipped_uids),
+        unhosted_skipped=len(state.unhosted),
+        # Only meaningful with an allowlist configured; without one every ride
+        # is "unknown" and warning about it would be noise.
+        host_unknown=(
+            sum(1 for ride in rides if ride.get("hosted_by_group") is None)
+            if state.group_hosts
+            else 0
+        ),
         enrichment_ran=state.seams.enrich_enabled,
         with_image=sum(1 for ride in rides if ride.get("image")),
         with_route=sum(1 for ride in rides if ride.get("routes")),
@@ -1155,8 +1213,10 @@ def summary_markdown(report: Report) -> str:
         ("Upcoming rides in the feed", str(report.upcoming)),
         ("Already-happened rides in the feed", str(report.feed_past)),
         ("Feed events skipped by the exclusion list", str(report.excluded_skipped)),
+        ("Feed events dropped as not group-hosted", str(report.unhosted_skipped)),
         ("Upcoming rides with a photo", f"{report.with_image} / {report.upcoming}"),
         ("Upcoming rides with a route", f"{report.with_route} / {report.upcoming}"),
+        ("Upcoming rides with an unknown host", str(report.host_unknown)),
         (
             "Routes with a measured distance",
             f"{report.routes_measured} / {report.routes_total}",
@@ -1325,6 +1385,13 @@ def build_parser() -> argparse.ArgumentParser:
         f"(default: {fetch_rides.EXCLUDED_EVENTS_PATH})",
     )
     parser.add_argument(
+        "--group-hosts",
+        default=str(fetch_rides.GROUP_HOSTS_PATH),
+        help="Partiful user-id allowlist of accounts whose events we show; "
+        "feed events hosted by nobody on the list are dropped "
+        f"(default: {fetch_rides.GROUP_HOSTS_PATH})",
+    )
+    parser.add_argument(
         "--now",
         type=parse_now,
         help="pin the clock to this ISO timestamp (tests; Eastern if naive)",
@@ -1364,6 +1431,7 @@ def main(argv: list = None) -> int:
         ics_file=args.ics_file,
         ride_images=args.ride_images,
         excluded_events=args.excluded_events,
+        group_hosts=args.group_hosts,
         now=args.now,
         enrich_limit=args.enrich_limit,
         poster_limit=args.poster_limit,
@@ -1374,8 +1442,6 @@ def main(argv: list = None) -> int:
         state = run(config)
     except (
         fetch_rides.FeedError,
-        archive_events.ArchiveError,
-        export_ics.ExportError,
         SyncError,
     ) as exc:
         print(f"sync: {fetch_rides.scrub(exc)}", file=sys.stderr)

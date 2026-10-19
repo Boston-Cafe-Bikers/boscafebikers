@@ -8,22 +8,17 @@ so the payload under test is shaped exactly like a real one.
 from __future__ import annotations
 
 import json
-import sys
 from datetime import datetime
 from pathlib import Path
-from zoneinfo import ZoneInfo
 
 import pytest
 from icalendar import Calendar
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(REPO_ROOT / "scripts"))
+from helpers import EASTERN, FIXTURE, REPO_ROOT
 
-import export_ics  # noqa: E402
-import fetch_rides  # noqa: E402
+import export_ics
+import fetch_rides
 
-FIXTURE = REPO_ROOT / "tests" / "fixtures" / "sample.ics"
-EASTERN = ZoneInfo("America/New_York")
 # Same pinned "now" as test_fetch_rides.py: after the past event, well before
 # the 2030 rides.
 NOW = datetime(2025, 1, 1, 12, 0, tzinfo=EASTERN)

@@ -13,21 +13,26 @@ test, which reorders ``sync.STEPS`` and asserts the specific damage.
 from __future__ import annotations
 
 import json
-import sys
 from datetime import datetime, timedelta
 from pathlib import Path
-from zoneinfo import ZoneInfo
 
 import pytest
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(REPO_ROOT / "scripts"))
+from helpers import (
+    EASTERN,
+    EVENT_PAGE_HTML as EVENT_PAGE,
+    FIXTURE,
+    GEOMETRY,
+    RESOLVED_LINKS,
+    SEAMS,
+    TILE,
+)
 
-import fetch_rides  # noqa: E402
-import geocode_cafes  # noqa: E402
-import render_route_maps  # noqa: E402
-import route_map  # noqa: E402
-import sync  # noqa: E402
+import fetch_rides
+import geocode_cafes
+import render_route_maps
+import route_map
+import sync
 
 
 @pytest.fixture(autouse=True)
@@ -43,13 +48,6 @@ def _outside_actions(monkeypatch):
     monkeypatch.delenv("GITHUB_ACTIONS", raising=False)
     monkeypatch.delenv("GITHUB_STEP_SUMMARY", raising=False)
 
-EASTERN = ZoneInfo("America/New_York")
-FIXTURE = REPO_ROOT / "tests" / "fixtures" / "sample.ics"
-EVENT_PAGE = (REPO_ROOT / "tests" / "fixtures" / "event-page.html").read_text(
-    encoding="utf-8"
-)
-TILE = (REPO_ROOT / "tests" / "fixtures" / "tile.png").read_bytes()
-
 # Pinned clock: after the fixture's one past ride (2024) and well before its
 # two future ones (2030), so the partition never depends on the wall clock.
 NOW = datetime(2026, 1, 10, 12, 0, tzinfo=EASTERN)
@@ -57,74 +55,6 @@ NOW = datetime(2026, 1, 10, 12, 0, tzinfo=EASTERN)
 # run stamps a fresh `updated_at`; only the *files* have to stay still.
 LATER = NOW + timedelta(minutes=7)
 
-# A short Boston polyline, standing in for BRouter's geometry.
-GEOMETRY = [
-    (42.3355, -71.1506),
-    (42.3400, -71.1600),
-    (42.3500, -71.1700),
-    (42.3668, -71.1868),
-]
-
-# What the fixture page's maps.app.goo.gl custom fields resolve to. Same pair
-# tests/test_fetch_rides.py uses: one real directions URL (with the geocode
-# tokens that give the route its coordinates) and one plain place pin.
-RESOLVED_LINKS = {
-    "https://maps.app.goo.gl/RouteShortLink1?g_st=ic": (
-        "https://maps.google.com/?saddr=Bluebikes,+Cleveland+Circle,+Boston,+MA"
-        "&daddr=Tatte+Bakery,+Boston,+MA&dirflg=b"
-        "&geocode=FTf9hQId6lPC-ylRGlXiU3jjiTGY1w16bG3cRw%3D%3D;"
-        "FWd3hgIdjcbB-ykdbpobJHnjiTGRSDuTYi0pzA%3D%3D"
-    ),
-    "https://maps.app.goo.gl/PlaceShortLink1?g_st=ic": (
-        "https://maps.google.com?q=Bluebikes,+Cleveland+Circle&entry=gps"
-    ),
-}
-
-
-# --- the stubbed network ---------------------------------------------------
-
-
-def fake_page(url: str) -> str:
-    """Every ride's Partiful page is the fixture page."""
-    return EVENT_PAGE
-
-
-def fake_resolve(url: str) -> str:
-    if url in RESOLVED_LINKS:
-        return RESOLVED_LINKS[url]
-    raise ValueError(f"cannot resolve {url}")
-
-
-def fake_length(points: list) -> float:
-    """Stand-in for BRouter's distance: 1 km per leg."""
-    return 1000.0 * (len(points) - 1)
-
-
-def fake_geometry(points: list) -> list:
-    return GEOMETRY
-
-
-def fake_tile(zoom: int, x: int, y: int) -> bytes:
-    return TILE
-
-
-def fake_geocode(url: str) -> list:
-    return [{"lat": "42.348765", "lon": "-71.123456"}]
-
-
-def no_sleep(_seconds) -> None:
-    pass
-
-
-SEAMS = {
-    "fetch_page": fake_page,
-    "resolve_link": fake_resolve,
-    "fetch_length": fake_length,
-    "fetch_geometry": fake_geometry,
-    "fetch_tile": fake_tile,
-    "geocode_fetch": fake_geocode,
-    "geocode_sleep": no_sleep,
-}
 
 
 # --- helpers ---------------------------------------------------------------
@@ -1006,7 +936,9 @@ def test_the_report_lands_beside_the_data(data_dir):
         (data_dir / "sync-report.json").read_text(encoding="utf-8")
     )
     assert written == state.report.state()
-    assert written["feed"] == {"upcoming": 2, "past": 1, "excluded": 0}
+    assert written["feed"] == {
+        "upcoming": 2, "past": 1, "excluded": 0, "unhosted": 0,
+    }
     assert written["archive"] == {"rides": 1, "never_checked": 0}
 
 
@@ -1072,6 +1004,42 @@ def test_a_healthy_run_warns_about_nothing(data_dir, capsys):
     out = capsys.readouterr().out
     assert "warning:" not in out and "notice:" not in out
     assert "sync: feed: 2 upcoming" in out
+
+
+# --- the host allowlist -----------------------------------------------------
+
+
+def test_a_non_group_event_is_dropped_from_the_upcoming_list(data_dir):
+    """The feed is the organizer's whole calendar; only group-hosted events stay."""
+    foreign = EVENT_PAGE.replace("Hs47uq5mucZyXLBJZCda", "someoneElse")
+
+    state = sync.run(config(data_dir), **{**SEAMS, "fetch_page": lambda url: foreign})
+    assert state.report.unhosted_skipped == 2
+    assert payload_of(data_dir / "events.json")["events"] == []
+
+
+def test_an_unhosted_event_is_purged_from_the_archive(data_dir):
+    """One archived before the allowlist existed is dropped on the next sync."""
+    already = dict(feed_rides()[0])  # the Charles ride, as if long published
+    already.pop("hosted_by_group", None)
+    write_payload(data_dir / "events-past.json", [already])
+    foreign = EVENT_PAGE.replace("Hs47uq5mucZyXLBJZCda", "someoneElse")
+
+    state = sync.run(config(data_dir), **{**SEAMS, "fetch_page": lambda url: foreign})
+    assert state.report.unhosted_skipped == 2
+    assert "evt-future-charles-loop@partiful.com" not in uids(
+        data_dir / "events-past.json"
+    )
+
+
+def test_every_host_unknown_warns_and_filters_nothing(data_dir, capsys):
+    """A Partiful markup change must be visible, and must never empty the list."""
+    state = sync.run(config(data_dir), **{**SEAMS, "fetch_page": blank_page})
+    assert state.report.host_unknown == state.report.upcoming == 2
+    assert state.report.unhosted_skipped == 0
+    assert (data_dir / "events.json").exists()
+    sync.print_report(state.report, env={})
+    assert "could not tell who hosts" in capsys.readouterr().out
 
 
 def test_an_empty_feed_over_a_stocked_archive_warns(data_dir, tmp_path, capsys):

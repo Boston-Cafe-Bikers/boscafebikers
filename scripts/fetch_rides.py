@@ -11,6 +11,11 @@ at a file instead:
 scripts/archive_events.py folds into site/events-past.json so the calendar can
 keep showing them.
 
+The feed is the organizer's *whole* Partiful calendar, so events they were only
+invited to show up in it too. On a live run each event's Partiful page is read
+during enrichment and the event is kept only when one of the accounts in
+scripts/group_hosts.json hosts it; events whose page can't be read are kept.
+
 Exits nonzero on any fetch or parse failure.
 """
 
@@ -28,7 +33,6 @@ from collections.abc import Callable
 from datetime import date, datetime, timezone
 from pathlib import Path
 from urllib.parse import parse_qs, unquote_plus, urlsplit
-from zoneinfo import ZoneInfo
 
 import requests
 from icalendar import Calendar
@@ -37,8 +41,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import ride_fields  # noqa: E402
 
-LOCAL_TZ = ZoneInfo("America/New_York")
-REPO_ROOT = Path(__file__).resolve().parent.parent
+LOCAL_TZ = ride_fields.LOCAL_TZ
+REPO_ROOT = ride_fields.REPO_ROOT
 DEFAULT_OUTPUT = REPO_ROOT / "site" / "events.json"
 # Optional sidecar mapping ride UID -> image URL, merged into each event as
 # `image`. The ICS feed itself carries no photos, so this is how the organizer
@@ -48,7 +52,14 @@ RIDE_IMAGES_PATH = REPO_ROOT / "scripts" / "ride_images.json"
 # export carries their personal events too). archive_events.py reads the
 # same file, so an excluded ride is dropped from the upcoming list, the past
 # export, and any archive that already holds it.
-EXCLUDED_EVENTS_PATH = REPO_ROOT / "scripts" / "excluded_events.json"
+EXCLUDED_EVENTS_PATH = ride_fields.EXCLUDED_EVENTS_PATH
+# Partiful user ids whose events the site shows. The feed is the organizer's
+# whole personal calendar, so it also carries events they were merely invited
+# to; a feed event is kept only when its Partiful page lists one of these
+# accounts as a host. The page is read during enrichment (see `enrich_rides`),
+# so an event whose page can't be read is *kept* rather than dropped — the same
+# fail-soft rule as the rest of enrichment. Without this file, all events pass.
+GROUP_HOSTS_PATH = REPO_ROOT / "scripts" / "group_hosts.json"
 FETCH_TIMEOUT_SECONDS = 30
 # A ride does not stop being "the next ride" the instant it starts: people turn
 # up late at the dock and still catch the group, so the upcoming export keeps a
@@ -161,18 +172,32 @@ def derive_partiful_url(uid: str) -> str | None:
     return PARTIFUL_EVENT_URL + uid
 
 
-def load_ride_images(path: Path | None = None) -> dict:
-    """Read the optional UID → image-URL sidecar. A missing file means "{}"."""
-    path = Path(path) if path is not None else RIDE_IMAGES_PATH
+def _load_uid_sidecar(
+    path: Path | None, default: Path, label: str, *, as_set: bool
+) -> dict | set[str]:
+    """Read a UID → note/URL sidecar. A missing file means "empty".
+
+    The three sidecars (ride images, excluded events, group hosts) have the
+    same shape and the same rules: optional, a JSON object keyed by UID, a
+    parse error fatal and reported with the filename only (never a value).
+    They differ only in the label and whether callers want the values (`dict`)
+    or just the keys (`set`).
+    """
+    path = Path(path) if path is not None else default
     if not path.exists():
-        return {}
+        return set() if as_set else {}
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except ValueError as exc:
-        raise FeedError(f"could not parse ride images ({path.name}): {scrub(exc)}") from None
+        raise FeedError(f"could not parse {label} ({path.name}): {scrub(exc)}") from None
     if not isinstance(data, dict):
-        raise FeedError(f"ride images ({path.name}) must be a JSON object of UID → URL")
-    return data
+        raise FeedError(f"{label} ({path.name}) must be a JSON object of UID → value")
+    return {str(uid) for uid in data} if as_set else data
+
+
+def load_ride_images(path: Path | None = None) -> dict:
+    """Read the optional UID → image-URL sidecar. A missing file means "{}"."""
+    return _load_uid_sidecar(path, RIDE_IMAGES_PATH, "ride images", as_set=False)
 
 
 def load_excluded_events(path: Path | None = None) -> set[str]:
@@ -181,25 +206,22 @@ def load_excluded_events(path: Path | None = None) -> set[str]:
     The value is a human note (what the event was and why it is excluded);
     only the keys matter. A missing file means "exclude nothing".
     """
-    path = Path(path) if path is not None else EXCLUDED_EVENTS_PATH
-    if not path.exists():
-        return set()
-    try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-    except ValueError as exc:
-        raise FeedError(
-            f"could not parse excluded events ({path.name}): {scrub(exc)}"
-        ) from None
-    if not isinstance(data, dict):
-        raise FeedError(
-            f"excluded events ({path.name}) must be a JSON object of UID → note"
-        )
-    return {str(uid) for uid in data}
+    return _load_uid_sidecar(
+        path, EXCLUDED_EVENTS_PATH, "excluded events", as_set=True
+    )
 
 
-def _event_from_page(html: str) -> dict | None:
-    """The `event` object out of a Partiful event page's __NEXT_DATA__."""
-    data = _extract_next_data(html)
+def load_group_hosts(path: Path | None = None) -> set[str]:
+    """Read the Partiful user-id allowlist of accounts whose events we show.
+
+    The value is a human note (who the account is), only the keys matter. A
+    missing file means "no allowlist", in which case every event is kept.
+    """
+    return _load_uid_sidecar(path, GROUP_HOSTS_PATH, "group hosts", as_set=True)
+
+
+def _event_from_data(data: dict | None) -> dict | None:
+    """The `event` object out of an already-parsed __NEXT_DATA__ blob."""
     if data is None:
         return None
     try:
@@ -207,6 +229,43 @@ def _event_from_page(html: str) -> dict | None:
     except (KeyError, TypeError):
         return None
     return event if isinstance(event, dict) else None
+
+
+def _event_from_page(html: str) -> dict | None:
+    """The `event` object out of a Partiful event page's __NEXT_DATA__."""
+    return _event_from_data(_extract_next_data(html))
+
+
+def event_owner_ids(event: dict) -> list[str]:
+    """The Partiful user ids that host an event, deduplicated and stable.
+
+    The event page spells the hosts in three ways — ``ownerIds`` (bare
+    strings), ``owners`` (``{"id", "path"}`` objects) and ``createdBy`` (the
+    single creator) — and on any given page only some of them are present. All
+    three are read, so a jointly-hosted event is recognised however Partiful
+    chooses to name its hosts.
+    """
+    ids = [str(uid) for uid in event.get("ownerIds") or [] if uid]
+    for owner in event.get("owners") or []:
+        if isinstance(owner, dict) and owner.get("id"):
+            ids.append(str(owner["id"]))
+    creator = event.get("createdBy")
+    if isinstance(creator, dict) and creator.get("id"):
+        ids.append(str(creator["id"]))
+    return list(dict.fromkeys(ids))
+
+
+def event_hosted_by_group(event: dict, group_hosts: set[str]) -> bool | None:
+    """Whether one of `group_hosts` is among an event's hosts.
+
+    None when the page carried no host information at all. An unknown event is
+    kept, never dropped (see ``filter_unhosted``), so a Partiful markup change
+    can't quietly empty the calendar.
+    """
+    owner_ids = event_owner_ids(event)
+    if not owner_ids:
+        return None
+    return bool(set(owner_ids) & group_hosts)
 
 
 def _extract_next_data(html: str) -> dict | None:
@@ -245,19 +304,18 @@ def _first_image_url(text: str) -> str | None:
     return match.group(0) if match else None
 
 
-def _extract_event_image(html: str) -> str | None:
+def _extract_event_image(html: str, event: dict | None = None) -> str | None:
     """The event's cover image URL from its public Partiful event page.
 
     Structured path first (__NEXT_DATA__.props.pageProps.event.image), then a
-    raw regex for a Firebase Storage URL anywhere in the page.
+    raw regex for a Firebase Storage URL anywhere in the page. Pass `event`
+    when the caller has already parsed the page's __NEXT_DATA__, so the page
+    is not parsed a second time just to read its image.
     """
-    data = _extract_next_data(html)
-    if data is not None:
-        try:
-            event = data["props"]["pageProps"]["event"]
-            image = _image_url_value(event.get("image"))
-        except (KeyError, TypeError, AttributeError):
-            image = None
+    if event is None:
+        event = _event_from_page(html)
+    if event is not None:
+        image = _image_url_value(event.get("image"))
         if image:
             return image
     return _first_image_url(html)
@@ -531,17 +589,22 @@ def enrich_rides(
     fetch_page: Callable[[str], str] | None = None,
     resolve_link: Callable[[str], str] | None = None,
     fetch_length: Callable[[list], float | None] | None = None,
+    group_hosts: set[str] | None = None,
 ) -> int:
     """Backfill each ride from its public Partiful event page.
 
-    Two things come off the page: ``image`` (the cover photo) and ``routes``
-    (the host's labelled Google Maps route links — see ``rides_routes``).
-    Rides whose ``image`` is already set (the explicit ``ride_images.json``
-    sidecar wins) keep it, as do rides with no event-page URL. A fetch or parse
-    failure is *not* a sync failure — a ride that can't be enriched keeps what
-    it has. Returns how many rides had an ``image`` backfilled; ``routes`` is
-    set as a side effect (to a list, empty when the event has none, which is
-    how it's told apart from the None of a never-enriched ride).
+    Three things come off the page: ``image`` (the cover photo), ``routes``
+    (the host's labelled Google Maps route links — see ``rides_routes``) and
+    ``hosted_by_group`` (whether one of ``group_hosts`` is an event host — see
+    ``event_hosted_by_group``). Rides whose ``image`` is already set (the
+    explicit ``ride_images.json`` sidecar wins) keep it, as do rides with no
+    event-page URL. A fetch or parse failure is *not* a sync failure — a ride
+    that can't be enriched keeps what it has. Returns how many rides had an
+    ``image`` backfilled; ``routes`` and ``hosted_by_group`` are set as side
+    effects (``routes`` to a list, empty when the event has none, which is how
+    it's told apart from the None of a never-enriched ride; ``hosted_by_group``
+    likewise left None when it can't be decided, so ``filter_unhosted`` never
+    drops a ride whose page went unread).
     """
     if fetch_page is None:
         fetch_page = _fetch_event_page
@@ -556,18 +619,43 @@ def enrich_rides(
             html = fetch_page(page_url)
         except (requests.RequestException, ValueError, TypeError):
             continue  # soft: enrichment must never break the sync
+        # Parse the page once; the image (with its raw-URL regex fallback, for
+        # pages whose __NEXT_DATA__ doesn't parse) and the routes/host check
+        # both read the same event object.
+        event = _event_from_data(_extract_next_data(html))
         if not ride.get("image"):
-            # _extract_event_image keeps its raw-URL regex fallback for pages
-            # whose __NEXT_DATA__ doesn't parse — don't reach into the event
-            # object for this.
-            image = _extract_event_image(html)
+            image = _extract_event_image(html, event)
             if image:
                 ride["image"] = image
                 backfilled += 1
-        event = _event_from_page(html)
         if event is not None:
             ride["routes"] = rides_routes(event, resolve_link, fetch_length)
+            if group_hosts:
+                ride["hosted_by_group"] = event_hosted_by_group(event, group_hosts)
     return backfilled
+
+
+def filter_unhosted(
+    rides: list[dict], group_hosts: set[str] | None = None
+) -> tuple[list[dict], set[str]]:
+    """Drop rides we know are *not* hosted by the group.
+
+    ``enrich_rides`` sets ``hosted_by_group`` from the event page: True when one
+    of ``group_hosts`` owns the event, False when the page was read and none
+    did, and None when the page could not be read (or no allowlist is
+    configured). Only a definite False is dropped — an unreadable page keeps
+    its ride, so a Partiful hiccup can never hide a real one. With no
+    ``group_hosts`` at all this is a no-op. Returns ``(kept, dropped_uids)``.
+    """
+    if not group_hosts:
+        return rides, set()
+    kept = [ride for ride in rides if ride.get("hosted_by_group") is not False]
+    dropped = {
+        ride["uid"]
+        for ride in rides
+        if ride.get("hosted_by_group") is False and ride.get("uid")
+    }
+    return kept, dropped
 
 
 def _strip_rsvp(description: str) -> str:
@@ -727,6 +815,11 @@ def parse_events(
                 # an empty one) means "we checked". archive_events relies on
                 # that difference so a re-export can't erase known routes.
                 "routes": None,
+                # None until enrichment names the event's hosts; True/False
+                # once it has (see filter_unhosted). A None here must never
+                # overwrite a decided value in archive_events.merge_ride, so a
+                # re-export can't un-decide a ride's ownership.
+                "hosted_by_group": None,
             }
         )
 
@@ -751,9 +844,10 @@ def write_events(payload: dict, output_path: Path) -> None:
     )
 
 
-def load_source(args: argparse.Namespace) -> bytes:
-    if args.ics_file:
-        path = Path(args.ics_file)
+def load_source(ics_file: str | Path | None = None) -> bytes:
+    """The feed bytes: from `ics_file`, else the secret PARTIFUL_ICS_URL."""
+    if ics_file:
+        path = Path(ics_file)
         try:
             return path.read_bytes()
         except OSError as exc:
@@ -791,6 +885,13 @@ def main(argv: list[str] | None = None) -> int:
              f"(default: {EXCLUDED_EVENTS_PATH})",
     )
     parser.add_argument(
+        "--group-hosts",
+        default=str(GROUP_HOSTS_PATH),
+        help="Partiful user-id allowlist JSON of accounts whose events we show; "
+             "feed events hosted by nobody on the list are dropped "
+             f"(default: {GROUP_HOSTS_PATH})",
+    )
+    parser.add_argument(
         "--past-out",
         help="also write the feed's already-happened rides here, for the "
              "archive scripts/archive_events.py merges into events-past.json",
@@ -801,9 +902,10 @@ def main(argv: list[str] | None = None) -> int:
     # ride that starts between the two calls.
     now = datetime.now(timezone.utc).astimezone(LOCAL_TZ)
     try:
-        data = load_source(args)
+        data = load_source(args.ics_file)
         images = load_ride_images(args.ride_images)
         excluded = load_excluded_events(args.excluded_events)
+        group_hosts = load_group_hosts(args.group_hosts)
         rides = parse_events(data, now=now, images=images, excluded=excluded)
         past_rides = (
             parse_events(data, now=now, images=images, past=True, excluded=excluded)
@@ -817,11 +919,17 @@ def main(argv: list[str] | None = None) -> int:
     if not args.ics_file:
         # Only a live-feed run reaches out to the public event pages; local
         # --ics-file runs stay offline (fixture UIDs aren't real event ids).
-        backfilled = enrich_rides(rides)
+        backfilled = enrich_rides(rides, group_hosts=group_hosts)
         if backfilled:
             print(
                 f"fetch_rides: pulled images for {backfilled} ride(s) "
                 "from their Partiful event pages"
+            )
+        rides, unhosted = filter_unhosted(rides, group_hosts)
+        if unhosted:
+            print(
+                f"fetch_rides: dropped {len(unhosted)} event(s) not hosted by "
+                "the group"
             )
 
     # The display fields the page reads instead of deriving (grace_until,

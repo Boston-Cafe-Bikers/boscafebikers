@@ -17,9 +17,9 @@ keeps a ride's `image` after it moves into the past: it was enriched from its
 Partiful event page while it was still upcoming, and the feed's own past-ride
 export carries no photo.
 
-Like promote_events.py this rewrites the archive only when the `events` list
-actually changed, so the sync workflow doesn't commit a fresh timestamp every
-6 hours. Exits 0 whether or not it wrote; nonzero only on real errors.
+This rewrites the archive only when the `events` list actually changed, so the
+sync workflow doesn't commit a fresh timestamp every 6 hours. Exits 0 whether
+or not it wrote; nonzero only on real errors.
 """
 
 from __future__ import annotations
@@ -29,21 +29,20 @@ import json
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from zoneinfo import ZoneInfo
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import ride_fields  # noqa: E402
 
-LOCAL_TZ = ZoneInfo("America/New_York")
-REPO_ROOT = Path(__file__).resolve().parent.parent
+LOCAL_TZ = ride_fields.LOCAL_TZ
+REPO_ROOT = ride_fields.REPO_ROOT
 DEFAULT_ARCHIVE = REPO_ROOT / "site" / "events-past.json"
-# The same UID → note sidecar fetch_rides.py reads (its EXCLUDED_EVENTS_PATH;
-# duplicated because this module is stdlib-only). Excluded rides are skipped
-# from every source *and purged from the archive itself*, so adding a UID is
-# enough to remove an already-archived event on the next sync — no hand
-# editing of events-past.json, which the feed would only re-fill.
-DEFAULT_EXCLUDED = REPO_ROOT / "scripts" / "excluded_events.json"
+# The same UID → note sidecar fetch_rides.py reads (ride_fields.EXCLUDED_EVENTS_PATH).
+# Excluded rides are skipped from every source *and purged from the archive
+# itself*, so adding a UID is enough to remove an already-archived event on the
+# next sync — no hand editing of events-past.json, which the feed would only
+# re-fill.
+DEFAULT_EXCLUDED = ride_fields.EXCLUDED_EVENTS_PATH
 # The same grace hour fetch_rides.py keeps a just-started ride in the upcoming
 # export for (a latecomer can still catch the group). It has to be the same
 # number here: the sync feeds this script the *previous* site/events.json, so a
@@ -140,9 +139,12 @@ def merge_archive(
     """Fold every already-happened ride from `sources` into `archive`.
 
     Rides already in the archive stay even if a source no longer mentions them
-    — the feed pruning its history must not erase ours. The one exception is
-    `excluded` (UIDs from excluded_events.json): those are dropped wherever
-    they come from, the archive included. Returns a new list sorted by start.
+    — the feed pruning its history must not erase ours. Two exceptions: UIDs in
+    `excluded` (from excluded_events.json) are dropped wherever they come from,
+    the archive included; and a ride carrying ``hosted_by_group: false`` — an
+    event enrichment has already found not to be the group's — is dropped too,
+    so one archived before the host allowlist existed is purged. A ``None`` or
+    missing flag is kept (never checked). Returns a new list sorted by start.
     """
     merged: dict[str, dict] = {}
     order: list[str] = []
@@ -156,6 +158,12 @@ def merge_archive(
                 continue
             key = ride_key(ride)
             if key in excluded:
+                continue
+            # An event enrichment has already found not to be hosted by the
+            # group is history we don't keep either — this is what purges one
+            # that slipped into the archive before the host allowlist existed.
+            # None (never checked) is kept; only a decided False is dropped.
+            if ride.get("hosted_by_group") is False:
                 continue
             if key in merged:
                 merged[key] = merge_ride(merged[key], ride)

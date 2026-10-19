@@ -26,6 +26,19 @@ from __future__ import annotations
 
 import re
 from datetime import datetime, timedelta
+from pathlib import Path
+from zoneinfo import ZoneInfo
+
+# The one definition of the group's timezone and where the repo sits. Every
+# module that needs either imports it here: fetch_rides.py, archive_events.py
+# (stdlib-only, and already importing this module) and sync.py used to each
+# declare their own copy, which is exactly how a filter and its archive drift.
+LOCAL_TZ = ZoneInfo("America/New_York")
+REPO_ROOT = Path(__file__).resolve().parent.parent
+# The UID → note sidecar of feed events that are not group rides. fetch_rides.py
+# reads it to drop them from the upcoming list; archive_events.py reads it too,
+# to purge an already-archived one. One path so they can't disagree.
+EXCLUDED_EVENTS_PATH = REPO_ROOT / "scripts" / "excluded_events.json"
 
 # A ride does not stop being "the next ride" the instant it starts: latecomers
 # still catch the group at the dock. This is the one definition — fetch_rides.py

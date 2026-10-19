@@ -3,20 +3,14 @@
 from __future__ import annotations
 
 import json
-import sys
 from datetime import datetime, timedelta
-from pathlib import Path
-from zoneinfo import ZoneInfo
 
 import pytest
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(REPO_ROOT / "scripts"))
+from helpers import EASTERN, EVENT_PAGE, FIXTURE, REPO_ROOT, RESOLVED_LINKS
 
-import fetch_rides  # noqa: E402
+import fetch_rides
 
-FIXTURE = REPO_ROOT / "tests" / "fixtures" / "sample.ics"
-EASTERN = ZoneInfo("America/New_York")
 # Pinned "now": after the past event, well before the 2030 rides.
 NOW = datetime(2025, 1, 1, 12, 0, tzinfo=EASTERN)
 
@@ -466,7 +460,6 @@ def test_image_merged_from_sidecar(feed_bytes):
 
 # --- Event-page image enrichment -------------------------------------------
 
-EVENT_PAGE = REPO_ROOT / "tests" / "fixtures" / "event-page.html"
 CHARLES_IMAGE = (
     "https://firebasestorage.googleapis.com/v0/b/getpartiful.appspot.com/o/"
     "rides%2Fcharles-loop.jpg?alt=media"
@@ -510,22 +503,7 @@ def _fake_event_page(url: str) -> str:
 
 # The fixture page's custom fields carry maps.app.goo.gl short links. Resolving
 # one is a network call, so every enrich_rides() test injects this instead —
-# the suite must stay fully offline.
-RESOLVED_LINKS = {
-    "https://maps.app.goo.gl/RouteShortLink1?g_st=ic": (
-        "https://maps.google.com/?saddr=Bluebikes,+Cleveland+Circle,+Boston,+MA"
-        "&daddr=Tatte+Bakery,+Boston,+MA&dirflg=b"
-        # Real geocode tokens for those two points (42.335543,-71.150614 and
-        # 42.366823,-71.186803) — see maps_geocode_points.
-        "&geocode=FTf9hQId6lPC-ylRGlXiU3jjiTGY1w16bG3cRw%3D%3D;"
-        "FWd3hgIdjcbB-ykdbpobJHnjiTGRSDuTYi0pzA%3D%3D"
-    ),
-    "https://maps.app.goo.gl/PlaceShortLink1?g_st=ic": (
-        "https://maps.google.com?q=Bluebikes,+Cleveland+Circle&entry=gps"
-    ),
-}
-
-
+# the suite must stay fully offline. RESOLVED_LINKS is shared with test_sync.
 def _fake_resolve_link(url: str) -> str:
     if url in RESOLVED_LINKS:
         return RESOLVED_LINKS[url]
@@ -606,7 +584,7 @@ def test_main_enriches_when_feed_comes_from_live_url(tmp_path, monkeypatch):
     out = tmp_path / "events.json"
     enriched = []
     monkeypatch.setattr(
-        fetch_rides, "enrich_rides", lambda rides: enriched.append(rides) or 2
+        fetch_rides, "enrich_rides", lambda rides, **kwargs: enriched.append(rides) or 2
     )
     monkeypatch.setattr(fetch_rides, "fetch_ics", lambda url: FIXTURE.read_bytes())
     monkeypatch.setenv("PARTIFUL_ICS_URL", "https://partiful.example.invalid/feed.ics")
@@ -618,30 +596,61 @@ def test_main_enriches_when_feed_comes_from_live_url(tmp_path, monkeypatch):
     ]
 
 
-def test_load_ride_images_missing_file_is_empty(tmp_path):
-    assert fetch_rides.load_ride_images(tmp_path / "nope.json") == {}
+# --- the UID sidecars -------------------------------------------------------
+# load_ride_images / load_excluded_events / load_group_hosts share one loader;
+# these cases prove each wrapper keeps its own empty/return shape.
+
+SIDECARS = [
+    pytest.param(
+        fetch_rides.load_ride_images,
+        {},
+        '{"abc": "https://example.com/img/a.jpg"}',
+        {"abc": "https://example.com/img/a.jpg"},
+        id="ride-images",
+    ),
+    pytest.param(
+        fetch_rides.load_excluded_events,
+        set(),
+        '{"abc": "a birthday"}',
+        {"abc"},
+        id="excluded-events",
+    ),
+    pytest.param(
+        fetch_rides.load_group_hosts,
+        set(),
+        '{"abc": "Boston Cafe Bikers"}',
+        {"abc"},
+        id="group-hosts",
+    ),
+]
 
 
-def test_load_ride_images_valid_object(tmp_path):
-    sidecar = tmp_path / "ride_images.json"
-    sidecar.write_text('{"abc@partiful.com": "https://example.com/img/a.jpg"}', encoding="utf-8")
-    assert fetch_rides.load_ride_images(sidecar) == {
-        "abc@partiful.com": "https://example.com/img/a.jpg"
-    }
+@pytest.mark.parametrize("loader, empty, valid_json, expected", SIDECARS)
+def test_sidecar_missing_file_is_empty(tmp_path, loader, empty, valid_json, expected):
+    assert loader(tmp_path / "nope.json") == empty
 
 
-def test_load_ride_images_malformed_raises(tmp_path):
-    sidecar = tmp_path / "ride_images.json"
+@pytest.mark.parametrize("loader, empty, valid_json, expected", SIDECARS)
+def test_sidecar_valid_object(tmp_path, loader, empty, valid_json, expected):
+    sidecar = tmp_path / "sidecar.json"
+    sidecar.write_text(valid_json, encoding="utf-8")
+    assert loader(sidecar) == expected
+
+
+@pytest.mark.parametrize("loader, empty, valid_json, expected", SIDECARS)
+def test_sidecar_malformed_raises(tmp_path, loader, empty, valid_json, expected):
+    sidecar = tmp_path / "sidecar.json"
     sidecar.write_text("{not json", encoding="utf-8")
     with pytest.raises(fetch_rides.FeedError):
-        fetch_rides.load_ride_images(sidecar)
+        loader(sidecar)
 
 
-def test_load_ride_images_non_object_raises(tmp_path):
-    sidecar = tmp_path / "ride_images.json"
-    sidecar.write_text("[1, 2]", encoding="utf-8")
+@pytest.mark.parametrize("loader, empty, valid_json, expected", SIDECARS)
+def test_sidecar_non_object_raises(tmp_path, loader, empty, valid_json, expected):
+    sidecar = tmp_path / "sidecar.json"
+    sidecar.write_text('["abc"]', encoding="utf-8")
     with pytest.raises(fetch_rides.FeedError):
-        fetch_rides.load_ride_images(sidecar)
+        loader(sidecar)
 
 
 def test_main_writes_image_from_sidecar(tmp_path):
@@ -764,11 +773,13 @@ def test_past_ride_carries_the_same_shape(past_rides):
     assert set(ride) == {
         "uid", "title", "start", "end", "date_display", "time_display",
         "location", "location_hidden", "location_url", "description",
-        "rsvp_url", "image", "routes",
+        "rsvp_url", "image", "routes", "hosted_by_group",
     }
     # None, not [] — "never enriched" has to stay distinguishable from
     # "checked, and this ride has no route links" (see archive_events).
     assert ride["routes"] is None
+    # None, not False — a never-checked ride must never be filtered out.
+    assert ride["hosted_by_group"] is None
 
 
 def test_main_writes_the_past_file_only_when_asked(tmp_path):
@@ -1102,28 +1113,8 @@ def test_no_exclusions_changes_nothing(feed_bytes):
     )
 
 
-def test_load_excluded_events_missing_file_is_empty(tmp_path):
-    assert fetch_rides.load_excluded_events(tmp_path / "nope.json") == set()
-
-
-def test_load_excluded_events_keys_are_the_uids(tmp_path):
-    sidecar = tmp_path / "excluded_events.json"
-    sidecar.write_text('{"abc": "a birthday", "def": ""}', encoding="utf-8")
-    assert fetch_rides.load_excluded_events(sidecar) == {"abc", "def"}
-
-
-def test_load_excluded_events_malformed_raises(tmp_path):
-    sidecar = tmp_path / "excluded_events.json"
-    sidecar.write_text("{not json", encoding="utf-8")
-    with pytest.raises(fetch_rides.FeedError):
-        fetch_rides.load_excluded_events(sidecar)
-
-
-def test_load_excluded_events_non_object_raises(tmp_path):
-    sidecar = tmp_path / "excluded_events.json"
-    sidecar.write_text('["abc"]', encoding="utf-8")
-    with pytest.raises(fetch_rides.FeedError):
-        fetch_rides.load_excluded_events(sidecar)
+# The loader itself is covered once by the SIDECARS parameterisation above;
+# this section keeps the excluded-events behaviour tests.
 
 
 def test_main_honours_the_exclusion_list_in_both_outputs(tmp_path):
@@ -1185,3 +1176,131 @@ def test_excluded_rides_are_absent_from_the_ride_data(name):
     payload = json.loads(path.read_text(encoding="utf-8"))
     present = {r["uid"] for r in payload["events"]} & excluded
     assert not present, f"site/{name} still holds excluded rides: {sorted(present)}"
+
+
+# --- the host allowlist -----------------------------------------------------
+
+GROUP_HOST = "Hs47uq5mucZyXLBJZCda"
+GROUP_FIXTURE = REPO_ROOT / "scripts" / "group_hosts.json"
+
+
+def test_committed_group_hosts_is_well_formed():
+    data = json.loads(GROUP_FIXTURE.read_text(encoding="utf-8"))
+    assert isinstance(data, dict) and data
+    for uid, note in data.items():
+        assert uid.isalnum(), uid  # a bare Partiful user id, not a name@partiful.com UID
+        assert isinstance(note, str) and note.strip(), uid
+    assert fetch_rides.load_group_hosts(GROUP_FIXTURE) == set(data)
+
+
+def test_event_owner_ids_reads_all_three_shapes():
+    event = {
+        "ownerIds": ["owner-id"],
+        "owners": [{"id": "owner-in-object"}],
+        "createdBy": {"id": "creator-id"},
+    }
+    assert fetch_rides.event_owner_ids(event) == [
+        "owner-id", "owner-in-object", "creator-id",
+    ]
+
+
+def test_event_owner_ids_deduplicates():
+    assert fetch_rides.event_owner_ids({"ownerIds": ["a", "a"]}) == ["a"]
+
+
+def test_event_owner_ids_empty_when_the_page_names_nobody():
+    assert fetch_rides.event_owner_ids({}) == []
+
+
+def test_event_hosted_by_group_is_true_when_a_host_matches():
+    event = {"ownerIds": ["a-friend", GROUP_HOST]}
+    assert fetch_rides.event_hosted_by_group(event, {GROUP_HOST}) is True
+
+
+def test_event_hosted_by_group_is_false_when_no_host_matches():
+    assert fetch_rides.event_hosted_by_group({"ownerIds": ["friend"]}, {GROUP_HOST}) is False
+
+
+def test_event_hosted_by_group_is_none_without_any_host_info():
+    """An event the page names nobody for is kept, not dropped."""
+    assert fetch_rides.event_hosted_by_group({}, {GROUP_HOST}) is None
+
+
+def test_enrich_rides_records_ownership_when_an_allowlist_is_given(feed_bytes):
+    rides = fetch_rides.parse_events(feed_bytes, now=NOW)
+    fetch_rides.enrich_rides(
+        rides,
+        fetch_page=_fake_event_page,
+        resolve_link=_fake_resolve_link,
+        fetch_length=_fake_route_length,
+        group_hosts={GROUP_HOST},
+    )
+    charles, minuteman = rides
+    assert charles["hosted_by_group"] is True
+    # minuteman's page could not be fetched → unknown, so it is never dropped.
+    assert minuteman["hosted_by_group"] is None
+
+
+def test_enrich_rides_leaves_ownership_unknown_without_an_allowlist(feed_bytes):
+    rides = fetch_rides.parse_events(feed_bytes, now=NOW)
+    fetch_rides.enrich_rides(
+        rides,
+        fetch_page=_fake_event_page,
+        resolve_link=_fake_resolve_link,
+        fetch_length=_fake_route_length,
+    )
+    assert all(ride["hosted_by_group"] is None for ride in rides)
+
+
+def test_enrich_rides_flags_a_page_hosted_by_nobody_we_know(feed_bytes):
+    def foreign_page(url: str) -> str:
+        return EVENT_PAGE.read_text(encoding="utf-8").replace(GROUP_HOST, "someoneElse")
+
+    rides = fetch_rides.parse_events(feed_bytes, now=NOW)
+    fetch_rides.enrich_rides(
+        rides,
+        fetch_page=foreign_page,
+        resolve_link=_fake_resolve_link,
+        fetch_length=_fake_route_length,
+        group_hosts={GROUP_HOST},
+    )
+    assert rides[0]["hosted_by_group"] is False
+
+
+def test_filter_unhosted_drops_only_decided_non_group_rides():
+    rides = [
+        {"uid": "ours", "hosted_by_group": True},
+        {"uid": "theirs", "hosted_by_group": False},
+        {"uid": "unknown", "hosted_by_group": None},
+        {"uid": "unchecked"},
+    ]
+    kept, dropped = fetch_rides.filter_unhosted(rides, {GROUP_HOST})
+    assert [ride["uid"] for ride in kept] == ["ours", "unknown", "unchecked"]
+    assert dropped == {"theirs"}
+
+
+def test_filter_unhosted_is_a_noop_without_an_allowlist():
+    rides = [{"uid": "theirs", "hosted_by_group": False}]
+    kept, dropped = fetch_rides.filter_unhosted(rides, set())
+    assert kept == rides and dropped == set()
+    kept, dropped = fetch_rides.filter_unhosted(rides)
+    assert kept == rides and dropped == set()
+
+
+def test_main_drops_events_not_hosted_by_the_group(tmp_path, monkeypatch):
+    out = tmp_path / "events.json"
+
+    def enrich_with_one_drop(rides, **kwargs):
+        for ride in rides:
+            # Charles is ours; minuteman is a friend's event we were invited to.
+            ride["hosted_by_group"] = ride["uid"].startswith("evt-future-charles")
+        return 0
+
+    monkeypatch.setattr(fetch_rides, "enrich_rides", enrich_with_one_drop)
+    monkeypatch.setattr(fetch_rides, "fetch_ics", lambda url: FIXTURE.read_bytes())
+    monkeypatch.setenv("PARTIFUL_ICS_URL", "https://partiful.example.invalid/feed.ics")
+    assert fetch_rides.main(["--out", str(out)]) == 0
+    payload = json.loads(out.read_text(encoding="utf-8"))
+    assert [ride["uid"] for ride in payload["events"]] == [
+        "evt-future-charles-loop@partiful.com"
+    ]

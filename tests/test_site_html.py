@@ -359,6 +359,27 @@ def test_page_loads_nav_js_render_blocking(path: Path):
     )
 
 
+def test_gallery_loads_its_cache_script_and_keeps_manual_fallback_photos():
+    """Instagram is progressive enhancement, never the only gallery.
+
+    The deferred script may replace the figures after a valid same-origin
+    cache arrives; without JS, without data, or during a Meta outage, the
+    hand-written photos must already be in the document.
+    """
+    path = SITE / "gallery.html"
+    elements = parse(path).elements
+    scripts = [
+        attrs for tag, attrs, _ in elements
+        if tag == "script" and attrs.get("src") == "js/gallery.js"
+    ]
+    assert len(scripts) == 1 and "defer" in scripts[0]
+    fallbacks = [
+        attrs for tag, attrs, _ in elements
+        if tag == "figure" and "gallery-item" in attrs.get("class", "").split()
+    ]
+    assert len(fallbacks) >= 1, "gallery.html must work before Instagram JSON loads"
+
+
 @pytest.mark.parametrize("path", PAGES, ids=PAGE_IDS)
 def test_page_has_no_root_relative_urls(path: Path):
     """Served from /boscafebikers/ (and /boscafebikers/preview/), so a leading
