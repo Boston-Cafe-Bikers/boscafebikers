@@ -108,6 +108,10 @@
       42.366727,
       -71.059396
     ],
+    "Linger, 525 Western Ave, Brighton, MA 02135": [
+      42.361597,
+      -71.144685
+    ],
     "Livable Streets Alliance, 100 Sidney St, Cambridge, MA": [
       42.359531,
       -71.10331
@@ -124,6 +128,10 @@
       42.327038,
       -71.124504
     ],
+    "Michette, 164 Broadway, Somerville, MA 02145": [
+      42.38849,
+      -71.085886
+    ],
     "Newbery Street Coffee Roasters, 14 Harvard St, Brookline, MA": [
       42.333627,
       -71.118984
@@ -136,9 +144,29 @@
       42.356346,
       -71.062375
     ],
+    "Park-9 Dog Bar, 48 Waters Ave, Everett, MA 02149": [
+      42.407725,
+      -71.064669
+    ],
     "Pepita Coffee, 284 Broadway, Cambridge, MA": [
       42.367774,
       -71.09798
+    ],
+    "Portico Brewing, 101 South St, Somerville, MA 02143": [
+      42.374799,
+      -71.091198
+    ],
+    "Riverbend Park, 1001 Memorial Dr, Cambridge, MA 02138": [
+      42.374558,
+      -71.130805
+    ],
+    "Roundhead Brewing, 1 Westinghouse Plaza, Boston, MA 02136": [
+      42.246789,
+      -71.13101
+    ],
+    "Roxbury Heritage State Park, 183 Roxbury St, Boston, MA 02119": [
+      42.330591,
+      -71.090765
     ],
     "Somerville Junction Park, 3 Woodbine St, Somerville, MA": [
       42.391229,
@@ -147,6 +175,10 @@
     "The BU Cycle Kitchen, 1019 Commonwealth Ave, Boston, MA": [
       42.352203,
       -71.121381
+    ],
+    "Tilde, 2376 Massachusetts Ave, Cambridge, MA 02140": [
+      42.396774,
+      -71.129796
     ]
   },
   "missing": [
