@@ -33,7 +33,6 @@ from collections.abc import Callable
 from datetime import date, datetime, timezone
 from pathlib import Path
 from urllib.parse import parse_qs, unquote_plus, urlsplit
-from zoneinfo import ZoneInfo
 
 import requests
 from icalendar import Calendar
@@ -42,8 +41,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import ride_fields  # noqa: E402
 
-LOCAL_TZ = ZoneInfo("America/New_York")
-REPO_ROOT = Path(__file__).resolve().parent.parent
+LOCAL_TZ = ride_fields.LOCAL_TZ
+REPO_ROOT = ride_fields.REPO_ROOT
 DEFAULT_OUTPUT = REPO_ROOT / "site" / "events.json"
 # Optional sidecar mapping ride UID -> image URL, merged into each event as
 # `image`. The ICS feed itself carries no photos, so this is how the organizer
@@ -53,7 +52,7 @@ RIDE_IMAGES_PATH = REPO_ROOT / "scripts" / "ride_images.json"
 # export carries their personal events too). archive_events.py reads the
 # same file, so an excluded ride is dropped from the upcoming list, the past
 # export, and any archive that already holds it.
-EXCLUDED_EVENTS_PATH = REPO_ROOT / "scripts" / "excluded_events.json"
+EXCLUDED_EVENTS_PATH = ride_fields.EXCLUDED_EVENTS_PATH
 # Partiful user ids whose events the site shows. The feed is the organizer's
 # whole personal calendar, so it also carries events they were merely invited
 # to; a feed event is kept only when its Partiful page lists one of these
@@ -173,18 +172,32 @@ def derive_partiful_url(uid: str) -> str | None:
     return PARTIFUL_EVENT_URL + uid
 
 
-def load_ride_images(path: Path | None = None) -> dict:
-    """Read the optional UID → image-URL sidecar. A missing file means "{}"."""
-    path = Path(path) if path is not None else RIDE_IMAGES_PATH
+def _load_uid_sidecar(
+    path: Path | None, default: Path, label: str, *, as_set: bool
+) -> dict | set[str]:
+    """Read a UID → note/URL sidecar. A missing file means "empty".
+
+    The three sidecars (ride images, excluded events, group hosts) have the
+    same shape and the same rules: optional, a JSON object keyed by UID, a
+    parse error fatal and reported with the filename only (never a value).
+    They differ only in the label and whether callers want the values (`dict`)
+    or just the keys (`set`).
+    """
+    path = Path(path) if path is not None else default
     if not path.exists():
-        return {}
+        return set() if as_set else {}
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except ValueError as exc:
-        raise FeedError(f"could not parse ride images ({path.name}): {scrub(exc)}") from None
+        raise FeedError(f"could not parse {label} ({path.name}): {scrub(exc)}") from None
     if not isinstance(data, dict):
-        raise FeedError(f"ride images ({path.name}) must be a JSON object of UID → URL")
-    return data
+        raise FeedError(f"{label} ({path.name}) must be a JSON object of UID → value")
+    return {str(uid) for uid in data} if as_set else data
+
+
+def load_ride_images(path: Path | None = None) -> dict:
+    """Read the optional UID → image-URL sidecar. A missing file means "{}"."""
+    return _load_uid_sidecar(path, RIDE_IMAGES_PATH, "ride images", as_set=False)
 
 
 def load_excluded_events(path: Path | None = None) -> set[str]:
@@ -193,48 +206,22 @@ def load_excluded_events(path: Path | None = None) -> set[str]:
     The value is a human note (what the event was and why it is excluded);
     only the keys matter. A missing file means "exclude nothing".
     """
-    path = Path(path) if path is not None else EXCLUDED_EVENTS_PATH
-    if not path.exists():
-        return set()
-    try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-    except ValueError as exc:
-        raise FeedError(
-            f"could not parse excluded events ({path.name}): {scrub(exc)}"
-        ) from None
-    if not isinstance(data, dict):
-        raise FeedError(
-            f"excluded events ({path.name}) must be a JSON object of UID → note"
-        )
-    return {str(uid) for uid in data}
+    return _load_uid_sidecar(
+        path, EXCLUDED_EVENTS_PATH, "excluded events", as_set=True
+    )
 
 
 def load_group_hosts(path: Path | None = None) -> set[str]:
     """Read the Partiful user-id allowlist of accounts whose events we show.
 
-    Same shape as the exclusion sidecar — the value is a human note (who the
-    account is), only the keys matter. A missing file means "no allowlist", in
-    which case every event is kept exactly as before.
+    The value is a human note (who the account is), only the keys matter. A
+    missing file means "no allowlist", in which case every event is kept.
     """
-    path = Path(path) if path is not None else GROUP_HOSTS_PATH
-    if not path.exists():
-        return set()
-    try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-    except ValueError as exc:
-        raise FeedError(
-            f"could not parse group hosts ({path.name}): {scrub(exc)}"
-        ) from None
-    if not isinstance(data, dict):
-        raise FeedError(
-            f"group hosts ({path.name}) must be a JSON object of user id → note"
-        )
-    return {str(uid) for uid in data}
+    return _load_uid_sidecar(path, GROUP_HOSTS_PATH, "group hosts", as_set=True)
 
 
-def _event_from_page(html: str) -> dict | None:
-    """The `event` object out of a Partiful event page's __NEXT_DATA__."""
-    data = _extract_next_data(html)
+def _event_from_data(data: dict | None) -> dict | None:
+    """The `event` object out of an already-parsed __NEXT_DATA__ blob."""
     if data is None:
         return None
     try:
@@ -242,6 +229,11 @@ def _event_from_page(html: str) -> dict | None:
     except (KeyError, TypeError):
         return None
     return event if isinstance(event, dict) else None
+
+
+def _event_from_page(html: str) -> dict | None:
+    """The `event` object out of a Partiful event page's __NEXT_DATA__."""
+    return _event_from_data(_extract_next_data(html))
 
 
 def event_owner_ids(event: dict) -> list[str]:
@@ -312,19 +304,18 @@ def _first_image_url(text: str) -> str | None:
     return match.group(0) if match else None
 
 
-def _extract_event_image(html: str) -> str | None:
+def _extract_event_image(html: str, event: dict | None = None) -> str | None:
     """The event's cover image URL from its public Partiful event page.
 
     Structured path first (__NEXT_DATA__.props.pageProps.event.image), then a
-    raw regex for a Firebase Storage URL anywhere in the page.
+    raw regex for a Firebase Storage URL anywhere in the page. Pass `event`
+    when the caller has already parsed the page's __NEXT_DATA__, so the page
+    is not parsed a second time just to read its image.
     """
-    data = _extract_next_data(html)
-    if data is not None:
-        try:
-            event = data["props"]["pageProps"]["event"]
-            image = _image_url_value(event.get("image"))
-        except (KeyError, TypeError, AttributeError):
-            image = None
+    if event is None:
+        event = _event_from_page(html)
+    if event is not None:
+        image = _image_url_value(event.get("image"))
         if image:
             return image
     return _first_image_url(html)
@@ -628,15 +619,15 @@ def enrich_rides(
             html = fetch_page(page_url)
         except (requests.RequestException, ValueError, TypeError):
             continue  # soft: enrichment must never break the sync
+        # Parse the page once; the image (with its raw-URL regex fallback, for
+        # pages whose __NEXT_DATA__ doesn't parse) and the routes/host check
+        # both read the same event object.
+        event = _event_from_data(_extract_next_data(html))
         if not ride.get("image"):
-            # _extract_event_image keeps its raw-URL regex fallback for pages
-            # whose __NEXT_DATA__ doesn't parse — don't reach into the event
-            # object for this.
-            image = _extract_event_image(html)
+            image = _extract_event_image(html, event)
             if image:
                 ride["image"] = image
                 backfilled += 1
-        event = _event_from_page(html)
         if event is not None:
             ride["routes"] = rides_routes(event, resolve_link, fetch_length)
             if group_hosts:
@@ -853,9 +844,10 @@ def write_events(payload: dict, output_path: Path) -> None:
     )
 
 
-def load_source(args: argparse.Namespace) -> bytes:
-    if args.ics_file:
-        path = Path(args.ics_file)
+def load_source(ics_file: str | Path | None = None) -> bytes:
+    """The feed bytes: from `ics_file`, else the secret PARTIFUL_ICS_URL."""
+    if ics_file:
+        path = Path(ics_file)
         try:
             return path.read_bytes()
         except OSError as exc:
@@ -910,7 +902,7 @@ def main(argv: list[str] | None = None) -> int:
     # ride that starts between the two calls.
     now = datetime.now(timezone.utc).astimezone(LOCAL_TZ)
     try:
-        data = load_source(args)
+        data = load_source(args.ics_file)
         images = load_ride_images(args.ride_images)
         excluded = load_excluded_events(args.excluded_events)
         group_hosts = load_group_hosts(args.group_hosts)

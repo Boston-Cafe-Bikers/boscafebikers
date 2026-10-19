@@ -1,0 +1,17 @@
+name: Install ImageMagick
+description: >
+  ubuntu-latest does not ship ImageMagick; install it only when missing. Ride
+  posters are fail-soft without it, but the Instagram cache strips metadata and
+  resizes with it.
+
+runs:
+  using: composite
+  steps:
+    - name: Install ImageMagick
+      shell: bash
+      run: |
+        if ! command -v magick >/dev/null && ! command -v convert >/dev/null; then
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends imagemagick >/dev/null
+        fi
+        (magick -version || convert -version) | head -1

@@ -61,7 +61,6 @@ import shutil
 import subprocess
 import sys
 import tempfile
-from argparse import Namespace
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -77,17 +76,16 @@ import enrich_archive  # noqa: E402
 import export_ics  # noqa: E402
 import fetch_rides  # noqa: E402
 import geocode_cafes  # noqa: E402
-import promote_events  # noqa: E402
 import render_route_maps  # noqa: E402
 import ride_fields  # noqa: E402
 import route_map  # noqa: E402
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+REPO_ROOT = ride_fields.REPO_ROOT
 DEFAULT_DATA_DIR = REPO_ROOT / "site"
 DEFAULT_URL_PREFIX = render_route_maps.DEFAULT_URL_PREFIX
 DEFAULT_ENRICH_LIMIT = enrich_archive.DEFAULT_LIMIT
 DEFAULT_POSTER_LIMIT = 8
-LOCAL_TZ = fetch_rides.LOCAL_TZ
+LOCAL_TZ = ride_fields.LOCAL_TZ
 
 
 class SyncError(Exception):
@@ -585,9 +583,7 @@ class Run:
 
 def _load_feed(config: Config) -> bytes:
     """The feed bytes, from --ics-file or from the secret URL. Never logged."""
-    return fetch_rides.load_source(
-        Namespace(ics_file=str(config.ics_file) if config.ics_file else None)
-    )
+    return fetch_rides.load_source(config.ics_file)
 
 
 def step_fetch(run: Run) -> None:
@@ -840,7 +836,10 @@ def step_promote(run: Run) -> None:
     config = run.config
     committed = run.files.read_json(config.events_path, default=None)
     current = committed.get("events") if isinstance(committed, dict) else None
-    if promote_events.rides_changed(run.payload["events"], current):
+    # Compare the `events` lists and nothing else: `updated_at` is stamped
+    # fresh on every fetch, so a rule that looked at the whole payload would
+    # make the sync commit a new timestamp every 6 hours.
+    if run.payload["events"] != current:
         run.save_events()
     run.promoted = True
 
@@ -1443,8 +1442,6 @@ def main(argv: list = None) -> int:
         state = run(config)
     except (
         fetch_rides.FeedError,
-        archive_events.ArchiveError,
-        export_ics.ExportError,
         SyncError,
     ) as exc:
         print(f"sync: {fetch_rides.scrub(exc)}", file=sys.stderr)

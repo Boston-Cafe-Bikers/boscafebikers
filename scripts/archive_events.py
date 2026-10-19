@@ -17,9 +17,9 @@ keeps a ride's `image` after it moves into the past: it was enriched from its
 Partiful event page while it was still upcoming, and the feed's own past-ride
 export carries no photo.
 
-Like promote_events.py this rewrites the archive only when the `events` list
-actually changed, so the sync workflow doesn't commit a fresh timestamp every
-6 hours. Exits 0 whether or not it wrote; nonzero only on real errors.
+This rewrites the archive only when the `events` list actually changed, so the
+sync workflow doesn't commit a fresh timestamp every 6 hours. Exits 0 whether
+or not it wrote; nonzero only on real errors.
 """
 
 from __future__ import annotations
@@ -29,21 +29,20 @@ import json
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from zoneinfo import ZoneInfo
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import ride_fields  # noqa: E402
 
-LOCAL_TZ = ZoneInfo("America/New_York")
-REPO_ROOT = Path(__file__).resolve().parent.parent
+LOCAL_TZ = ride_fields.LOCAL_TZ
+REPO_ROOT = ride_fields.REPO_ROOT
 DEFAULT_ARCHIVE = REPO_ROOT / "site" / "events-past.json"
-# The same UID → note sidecar fetch_rides.py reads (its EXCLUDED_EVENTS_PATH;
-# duplicated because this module is stdlib-only). Excluded rides are skipped
-# from every source *and purged from the archive itself*, so adding a UID is
-# enough to remove an already-archived event on the next sync — no hand
-# editing of events-past.json, which the feed would only re-fill.
-DEFAULT_EXCLUDED = REPO_ROOT / "scripts" / "excluded_events.json"
+# The same UID → note sidecar fetch_rides.py reads (ride_fields.EXCLUDED_EVENTS_PATH).
+# Excluded rides are skipped from every source *and purged from the archive
+# itself*, so adding a UID is enough to remove an already-archived event on the
+# next sync — no hand editing of events-past.json, which the feed would only
+# re-fill.
+DEFAULT_EXCLUDED = ride_fields.EXCLUDED_EVENTS_PATH
 # The same grace hour fetch_rides.py keeps a just-started ride in the upcoming
 # export for (a latecomer can still catch the group). It has to be the same
 # number here: the sync feeds this script the *previous* site/events.json, so a

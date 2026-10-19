@@ -3,15 +3,11 @@
 from __future__ import annotations
 
 import json
-import sys
 from pathlib import Path
 
 import pytest
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(REPO_ROOT / "scripts"))
-
-import enrich_archive  # noqa: E402
+import enrich_archive
 
 PAGE = (
     '<script id="__NEXT_DATA__" type="application/json">'

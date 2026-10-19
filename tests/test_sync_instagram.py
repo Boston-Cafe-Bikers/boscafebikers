@@ -1,14 +1,10 @@
 """Offline tests for the Instagram-to-static-gallery cache."""
 
 import json
-import sys
-from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-
-import sync_instagram  # noqa: E402
+import sync_instagram
 
 
 IMAGE = {

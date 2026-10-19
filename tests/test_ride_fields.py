@@ -8,19 +8,14 @@ name above all) are asserted here instead.
 
 from __future__ import annotations
 
-import sys
 from datetime import datetime, timedelta
-from pathlib import Path
 
 import pytest
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(REPO_ROOT / "scripts"))
-
-import archive_events  # noqa: E402
-import fetch_rides  # noqa: E402
-import ride_fields  # noqa: E402
-import route_map  # noqa: E402
+import archive_events
+import fetch_rides
+import ride_fields
+import route_map
 
 DOCK = "Bluebikes, Cleveland Circle, Boston, MA 02135"
 CAFE = "O'Some Café, 100 Main St, Watertown, MA 02472"

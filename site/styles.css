@@ -138,9 +138,33 @@ a { color: var(--roast); }
    fill is crema, so the ring is roast instead (ring ≠ fill); .links a below
    is foam-filled, so it keeps the default crema ring. */
 .btn:focus-visible { outline: 2px solid var(--roast); outline-offset: 2px; }
-/* .links a is duplicated per-page (index.html, contact.html each define the
-   base rule in their own inline <style>) — one shared ring here covers both
-   without duplicating it twice. */
+/* A section's closing CTA needs breathing room from the copy/grid above. */
+.btn-cta { margin-top: 1rem; }
+
+/* --- link cards (.links) --- */
+/* The ride-page card rows and the contact page's "other ways to reach us"
+   tiles share this treatment; keeping it here means neither page's inline
+   <style> has to repeat it. */
+.links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 1rem;
+}
+.links a {
+  flex: 1 1 auto;
+  text-align: center;
+  background: var(--foam);
+  border: 1px solid var(--oat);
+  border-radius: var(--radius);
+  padding: 14px 18px;
+  text-decoration: none;
+  font-weight: 600;
+}
+.links a:hover,
+.links a:focus { border-color: var(--crema); }
+.links a:active { filter: brightness(.95); }
+/* .links a is foam-filled, so it keeps the default crema ring. */
 .links a:focus-visible { outline: 2px solid var(--crema); outline-offset: 2px; }
 
 /* --- tab header nav --- */
@@ -420,6 +444,10 @@ section { padding: 40px 0; }
 section + section { border-top: 1px solid var(--oat); }
 section h2 { font-size: 1.6rem; }
 .lede { color: var(--muted); margin-top: 0; }
+/* Muted helper text ("check back soon", the updated stamp, empty states). */
+.note { color: var(--muted); font-size: .9rem; }
+/* Pages toggle [hidden] from JS; nothing may override the UA's rule. */
+[hidden] { display: none !important; }
 
 /* --- WIP placeholder badge --- */
 .wip {

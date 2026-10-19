@@ -8,29 +8,17 @@ from __future__ import annotations
 
 import json
 import pytest
-import sys
-from pathlib import Path
 from xml.etree import ElementTree
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(REPO_ROOT / "scripts"))
+from helpers import GEOMETRY, TILE
 
-import render_route_maps  # noqa: E402
-import route_map  # noqa: E402
+import render_route_maps
+import route_map
 
-# A short south-west → north-east line through Boston, plus a wiggle.
-GEOMETRY = [
-    (42.3355, -71.1506),
-    (42.3400, -71.1600),
-    (42.3500, -71.1700),
-    (42.3668, -71.1868),
-]
 # A route that is much wider than it is tall.
 FLAT = [(42.3500, -71.2000), (42.3505, -71.0500)]
 # ...and one much taller than it is wide.
 TALL = [(42.2500, -71.1000), (42.4500, -71.1005)]
-
-TILE = (REPO_ROOT / "tests" / "fixtures" / "tile.png").read_bytes()
 
 
 def tiles_for(points):
