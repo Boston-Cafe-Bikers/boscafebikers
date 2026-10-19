@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-10-18T16:01:31.395422-04:00",
+  "updated_at": "2026-10-19T11:41:17.395172-04:00",
   "count": 42,
   "events": [
     {
@@ -221,7 +221,8 @@
       "grace_until": "2026-05-15T18:30:00-04:00",
       "place_name": "Aeronaut Brewery",
       "address": "14 Tyler St, Somerville, MA",
-      "year": "2026"
+      "year": "2026",
+      "hosted_by_group": null
     },
     {
       "uid": "pEWGKBfnPbwufmj35mq6",
@@ -241,7 +242,8 @@
       "place_name": "James P. Kelleher Rose Garden",
       "address": "73 Park Dr, Boston, MA 02215",
       "year": "2026",
-      "poster": "posters/pEWGKBfnPbwufmj35mq6.jpg"
+      "poster": "posters/pEWGKBfnPbwufmj35mq6.jpg",
+      "hosted_by_group": null
     },
     {
       "uid": "U6SUvqa3uB2ZVOMbN5mj",
@@ -260,7 +262,8 @@
       "grace_until": "2026-05-25T15:30:00-04:00",
       "place_name": "Castle Island",
       "address": "2010 William J. Day Blvd, Boston, MA 02127",
-      "year": "2026"
+      "year": "2026",
+      "hosted_by_group": null
     },
     {
       "uid": "Y0Xc1LxQRjGuNmSt9PEp",
@@ -280,7 +283,8 @@
       "place_name": "Bikeeny Caffe",
       "address": "62 Summer St, Malden, MA 02148",
       "year": "2026",
-      "poster": "posters/Y0Xc1LxQRjGuNmSt9PEp.jpg"
+      "poster": "posters/Y0Xc1LxQRjGuNmSt9PEp.jpg",
+      "hosted_by_group": null
     },
     {
       "uid": "fnOIDVrUulU2l5UhZl5G",
@@ -342,7 +346,8 @@
       "grace_until": "2026-06-06T11:00:00-04:00",
       "place_name": "Copley Square",
       "address": "560 Boylston St, Boston, MA 02116",
-      "year": "2026"
+      "year": "2026",
+      "hosted_by_group": null
     },
     {
       "uid": "uzyx1AykpMLNEilFIPWx",
@@ -384,7 +389,8 @@
       "grace_until": "2026-06-07T12:00:00-04:00",
       "place_name": "Portico Brewing",
       "address": "101 South St, Somerville, MA 02143",
-      "year": "2026"
+      "year": "2026",
+      "hosted_by_group": null
     },
     {
       "uid": "S5slcE16gPWml5dZZwTK",
@@ -404,7 +410,8 @@
       "place_name": "Michette",
       "address": "164 Broadway, Somerville, MA 02145",
       "year": "2026",
-      "poster": "posters/S5slcE16gPWml5dZZwTK.jpg"
+      "poster": "posters/S5slcE16gPWml5dZZwTK.jpg",
+      "hosted_by_group": null
     },
     {
       "uid": "WX2ptgXyA7IVWtsroVa8",
@@ -424,7 +431,8 @@
       "place_name": "Tilde",
       "address": "2376 Massachusetts Ave, Cambridge, MA 02140",
       "year": "2026",
-      "poster": "posters/WX2ptgXyA7IVWtsroVa8.jpg"
+      "poster": "posters/WX2ptgXyA7IVWtsroVa8.jpg",
+      "hosted_by_group": null
     },
     {
       "uid": "41HT3tux8LzVeVSN6tQx",
@@ -443,7 +451,8 @@
       "grace_until": "2026-06-20T11:00:00-04:00",
       "place_name": "Linger",
       "address": "525 Western Ave, Brighton, MA 02135",
-      "year": "2026"
+      "year": "2026",
+      "hosted_by_group": null
     },
     {
       "uid": "u9DPNOffyehLiS8oh2U6",
@@ -463,7 +472,8 @@
       "place_name": "Farmer's Horse Coffee",
       "address": "374 Massachusetts Ave, Boston, MA 02115",
       "year": "2026",
-      "poster": "posters/u9DPNOffyehLiS8oh2U6.jpg"
+      "poster": "posters/u9DPNOffyehLiS8oh2U6.jpg",
+      "hosted_by_group": null
     },
     {
       "uid": "BrezyQ7GtxVtvVh8fI6z",
@@ -482,7 +492,8 @@
       "grace_until": "2026-07-05T11:00:00-04:00",
       "place_name": "Intelligentsia Coffee",
       "address": "810 Mount Auburn St, Watertown, MA 02472",
-      "year": "2026"
+      "year": "2026",
+      "hosted_by_group": null
     },
     {
       "uid": "TgXq84jCwOvqk8a48vRi",
@@ -502,7 +513,8 @@
       "place_name": "Jimmy's Cafe",
       "address": "65 Concord Ave, Somerville, MA 02143",
       "year": "2026",
-      "poster": "posters/TgXq84jCwOvqk8a48vRi.jpg"
+      "poster": "posters/TgXq84jCwOvqk8a48vRi.jpg",
+      "hosted_by_group": null
     },
     {
       "uid": "jMgeLqj1GA8iuK0RreyM",
@@ -522,7 +534,8 @@
       "place_name": "65 Concord Ave",
       "address": "Backyard, Somerville, MA 02143",
       "year": "2026",
-      "poster": "posters/jMgeLqj1GA8iuK0RreyM.jpg"
+      "poster": "posters/jMgeLqj1GA8iuK0RreyM.jpg",
+      "hosted_by_group": null
     },
     {
       "uid": "s2lJdOo6KMunhzbGZrks",
@@ -541,7 +554,8 @@
       "grace_until": "2026-07-11T13:00:00-04:00",
       "place_name": "65 Concord Ave",
       "address": "Somerville, MA",
-      "year": "2026"
+      "year": "2026",
+      "hosted_by_group": null
     },
     {
       "uid": "2NSzpDRgLBavKeIGxUTS",
@@ -560,7 +574,8 @@
       "grace_until": "2026-07-12T13:00:00-04:00",
       "place_name": "Park-9 Dog Bar",
       "address": "48 Waters Ave, Everett, MA 02149",
-      "year": "2026"
+      "year": "2026",
+      "hosted_by_group": null
     },
     {
       "uid": "KGy03ng81XHqKVJinp3s",
@@ -579,7 +594,8 @@
       "grace_until": "2026-07-19T11:00:00-04:00",
       "place_name": "Better Bagels",
       "address": "211 Congress St, Boston, MA 02110",
-      "year": "2026"
+      "year": "2026",
+      "hosted_by_group": null
     },
     {
       "uid": "Z50H1Zr8gbbyZtSyH75e",
@@ -667,7 +683,8 @@
       "place_name": "JP Licks",
       "address": "659 Centre St, Jamaica Plain, MA",
       "year": "2026",
-      "poster": "posters/Z50H1Zr8gbbyZtSyH75e.jpg"
+      "poster": "posters/Z50H1Zr8gbbyZtSyH75e.jpg",
+      "hosted_by_group": null
     },
     {
       "uid": "exCp8fNan5xy41ZZdHLn",
@@ -686,7 +703,8 @@
       "grace_until": "2026-07-26T12:00:00-04:00",
       "place_name": "Riverbend Park",
       "address": "1001 Memorial Dr, Cambridge, MA 02138",
-      "year": "2026"
+      "year": "2026",
+      "hosted_by_group": null
     },
     {
       "uid": "6MBKxp6PQGamcBZsOi2r",
@@ -729,7 +747,8 @@
       "place_name": "Newbery Street Coffee Roasters",
       "address": "14 Harvard St, Brookline, MA",
       "year": "2026",
-      "poster": "posters/6MBKxp6PQGamcBZsOi2r.jpg"
+      "poster": "posters/6MBKxp6PQGamcBZsOi2r.jpg",
+      "hosted_by_group": null
     },
     {
       "uid": "n00YHY91JAawRoNKJhb9",
@@ -771,7 +790,8 @@
       "grace_until": "2026-08-09T13:00:00-04:00",
       "place_name": "Pepita Coffee",
       "address": "284 Broadway, Cambridge, MA",
-      "year": "2026"
+      "year": "2026",
+      "hosted_by_group": null
     },
     {
       "uid": "gRzH7L3EoMRl3q8pl7OS",
@@ -814,7 +834,8 @@
       "place_name": "KoKo Coffee",
       "address": "226 Causeway St, Boston, MA",
       "year": "2026",
-      "poster": "posters/gRzH7L3EoMRl3q8pl7OS.jpg"
+      "poster": "posters/gRzH7L3EoMRl3q8pl7OS.jpg",
+      "hosted_by_group": null
     },
     {
       "uid": "a0gbEpda9D8KPbQfY275",
@@ -856,7 +877,8 @@
       "grace_until": "2026-08-16T12:00:00-04:00",
       "place_name": "Localito Cafe",
       "address": "30 Riverside Ave, Medford, MA",
-      "year": "2026"
+      "year": "2026",
+      "hosted_by_group": null
     },
     {
       "uid": "5I2Zwclcs30LUlbOjjeb",
@@ -898,7 +920,8 @@
       "grace_until": "2026-08-23T12:00:00-04:00",
       "place_name": "O'some Cafe",
       "address": "100 Main St, Watertown, MA",
-      "year": "2026"
+      "year": "2026",
+      "hosted_by_group": null
     },
     {
       "uid": "0kgziJu0xvnL3SBCeuU7",
@@ -941,7 +964,8 @@
       "address": "3 Kendall St, Brookline, MA",
       "year": "2026",
       "poster": "posters/0kgziJu0xvnL3SBCeuU7.jpg",
-      "map_image": "maps/0kgziJu0xvnL3SBCeuU7.svg"
+      "map_image": "maps/0kgziJu0xvnL3SBCeuU7.svg",
+      "hosted_by_group": null
     },
     {
       "uid": "Rm4Lv7N60seCePrNfg79",
@@ -960,7 +984,8 @@
       "grace_until": "2026-09-07T11:00:00-04:00",
       "place_name": "Park Street Station",
       "address": "Boston, MA",
-      "year": "2026"
+      "year": "2026",
+      "hosted_by_group": null
     },
     {
       "uid": "vv38L3uTZhc7m7zo21PL",
@@ -980,7 +1005,8 @@
       "place_name": "Roxbury Heritage State Park",
       "address": "183 Roxbury St, Boston, MA 02119",
       "year": "2026",
-      "poster": "posters/vv38L3uTZhc7m7zo21PL.jpg"
+      "poster": "posters/vv38L3uTZhc7m7zo21PL.jpg",
+      "hosted_by_group": null
     },
     {
       "uid": "Pk8PEGpxf96QnRTFX5q4",
@@ -999,7 +1025,8 @@
       "grace_until": "2026-09-13T12:00:00-04:00",
       "place_name": "Kicco Italian Coffee",
       "address": "1 Nashua St, Boston, MA 02114",
-      "year": "2026"
+      "year": "2026",
+      "hosted_by_group": null
     },
     {
       "uid": "QEVwg0dzu9q53uZmusrF",
@@ -1018,7 +1045,8 @@
       "grace_until": "2026-09-20T12:00:00-04:00",
       "place_name": null,
       "address": null,
-      "year": "2026"
+      "year": "2026",
+      "hosted_by_group": null
     },
     {
       "uid": "AU6ZZDL8Ao8fgsHlMbYJ",
@@ -1037,7 +1065,8 @@
       "grace_until": "2026-09-26T12:00:00-04:00",
       "place_name": "Dudley Cafe",
       "address": "15 Warren St, Boston, MA 02119",
-      "year": "2026"
+      "year": "2026",
+      "hosted_by_group": null
     },
     {
       "uid": "YOZssqMlLqwhc01wobXQ",
@@ -1057,7 +1086,8 @@
       "place_name": "Carl F Barron Plaza",
       "address": "Central Square, Cambridge, MA",
       "year": "2026",
-      "poster": "posters/YOZssqMlLqwhc01wobXQ.jpg"
+      "poster": "posters/YOZssqMlLqwhc01wobXQ.jpg",
+      "hosted_by_group": null
     },
     {
       "uid": "poFyel6OxdjVYRVI0XDV",
@@ -1077,7 +1107,8 @@
       "place_name": "Coolidge Corner",
       "address": "Brookline, MA",
       "year": "2026",
-      "poster": null
+      "poster": null,
+      "hosted_by_group": null
     },
     {
       "uid": "ri89Sal9MmXzZygzhcNZ",
@@ -1097,7 +1128,8 @@
       "place_name": "Forest Hills Station",
       "address": "Boston, MA",
       "year": "2026",
-      "poster": "posters/ri89Sal9MmXzZygzhcNZ.jpg"
+      "poster": "posters/ri89Sal9MmXzZygzhcNZ.jpg",
+      "hosted_by_group": null
     }
   ]
 }
