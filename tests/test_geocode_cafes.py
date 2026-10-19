@@ -5,14 +5,12 @@ so nothing in this file can reach Nominatim.
 """
 
 import json
-import sys
-from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+from helpers import REPO_ROOT
 
-import geocode_cafes  # noqa: E402
+import geocode_cafes
 
 
 # --------------------------------------------------------------------------
@@ -430,7 +428,7 @@ def test_cli_reports_a_malformed_cache(tmp_path, capsys):
 # been pulled into site/ (scripts/pull_data.sh).
 
 
-REPO = Path(__file__).resolve().parents[1]
+REPO = REPO_ROOT
 DATA = REPO / "site"
 
 

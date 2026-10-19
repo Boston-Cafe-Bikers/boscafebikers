@@ -2,15 +2,11 @@
 
 import io
 import json
-import sys
 import urllib.error
-from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-
-import check_meta_integration  # noqa: E402
+import check_meta_integration
 
 
 class Response:

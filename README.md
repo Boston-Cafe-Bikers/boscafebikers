@@ -35,8 +35,8 @@ Instagram Graph API → scripts/sync_instagram.py → instagram-posts.json +
 writes a file only when its content changed — so a sync that finds nothing new
 leaves the branch untouched and nothing is committed. Each step is still a
 standalone script (`fetch_rides.py`, `archive_events.py`, `enrich_archive.py`,
-`geocode_cafes.py`, `render_route_maps.py`, `promote_events.py`,
-`export_ics.py`) for one-off runs; `sync.py` imports them.
+`geocode_cafes.py`, `render_route_maps.py`, `export_ics.py`) for one-off runs;
+`sync.py` imports them.
 
 Every run also reports what it found — how many rides came back with a photo, a
 route, a measured distance, a map — on the run's summary page and in
@@ -488,7 +488,6 @@ needs touching.
 | `scripts/check_meta_integration.py` | Read-only live check that the Meta token resolves to `@bostoncafebikers` without logging the credential |
 | `scripts/sync_instagram.py` | Cache the latest nine Instagram posts and local display images without publishing the token |
 | `scripts/fetch_rides.py` | Fetch + parse the ICS feed → `events.json` |
-| `scripts/promote_events.py` | Copy fetched JSON into place only if the rides changed |
 | `scripts/archive_events.py` | Fold already-happened rides into `events-past.json` |
 | `scripts/enrich_archive.py` | Backfill images/routes onto archived rides, a few per run |
 | `scripts/ride_fields.py` | The display fields every stored ride carries — café name, address, year, route start/end names, the grace-hour cutoff |
@@ -506,6 +505,7 @@ needs touching.
 | `tests/test_archive_events.py` | pytest suite for the past-rides archive |
 | `tests/test_site_html.py` | pytest suite for the pages — well-formed, shared nav/footer, no root-relative URLs |
 | `tests/js/site.test.mjs` | `node --test` suite for `site/js/*.js`, against the DOM shim in `tests/js/dom-shim.mjs` |
+| `.github/actions/` | Composite actions shared by the workflows — the Python + pip-cache setup and the fail-soft ImageMagick install |
 | `.github/workflows/sync.yml` | Cron sync every 6h + manual dry run: tests → rides + Instagram → commit to `data`; calls `pages.yml` when generated data changes |
 | `.github/workflows/pages.yml` | Builds the Pages artifact (`master` at the root, `dev` under `/preview/`, `data` copied into both) and deploys it |
 | `.github/workflows/ci.yml` | Runs both test suites on every push and pull request |

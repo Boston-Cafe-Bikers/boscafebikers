@@ -15,8 +15,8 @@ Two properties make that cheap and churn-free:
   are remembered, so a run costs one request per café that has never been seen
   — which is zero on almost every sync, and one the week a new café appears.
 * **The file is rewritten only when the mapping changed** (the same no-churn
-  guard promote_events.py and archive_events.py keep). No timestamp is stamped
-  into it, so a no-op run leaves the bytes byte-identical.
+  guard archive_events.py keeps). No timestamp is stamped into it, so a no-op
+  run leaves the bytes byte-identical.
 
 A *resolved* miss (Nominatim answered, with nothing) is recorded in "missing"
 and never retried — `--retry-missing` is the manual escape hatch. A *transport*

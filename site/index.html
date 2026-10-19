@@ -272,11 +272,6 @@
       object-fit: contain;
     }
 
-    .note {
-      color: var(--muted);
-      font-size: .9rem;
-    }
-
     #updated {
       margin-top: .5rem;
     }
@@ -320,10 +315,6 @@
       background: var(--oat);
       border-radius: 6px;
       padding: 1px 5px;
-    }
-
-    [hidden] {
-      display: none !important;
     }
 
     /* --- calendar --- */
@@ -402,13 +393,6 @@
       width: 100%;
       cursor: pointer;
       line-height: 1.4;
-      /* Truncate long ride titles to one line instead of wrapping: a long
-       café name would wrap across several lines inside a ~48px mobile column
-       and stretch the whole calendar row tall. The full title lives in the
-       chip's aria-label and the ride-detail modal the chip opens. */
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
       /* Compact height on mobile so several rides in one day don't stack
        into a huge cell; restored to the 44px touch target at ≥560px. */
       min-height: 28px;
@@ -567,33 +551,6 @@
       margin-top: 10px;
     }
 
-    .links {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 12px;
-      margin-top: 1rem;
-    }
-
-    .links a {
-      flex: 1 1 auto;
-      text-align: center;
-      background: var(--foam);
-      border: 1px solid var(--oat);
-      border-radius: var(--radius);
-      padding: 14px 18px;
-      text-decoration: none;
-      font-weight: 600;
-    }
-
-    .links a:hover,
-    .links a:focus {
-      border-color: var(--crema);
-    }
-
-    .links a:active {
-      filter: brightness(.95);
-    }
-
     /* --- FullCalendar (dayGridMonth) café-palette overrides --- */
     /* FullCalendar 6 injects its own <style> at runtime (from the deferred
      CDN script), which lands after this block, so these rules use
@@ -676,16 +633,6 @@
       overflow: hidden;
     }
 
-    .fc .fc-event-title {
-      /* Truncate long ride titles to one line instead of wrapping — a long
-       name would wrap across several lines inside a ~48px mobile column and
-       stretch the whole calendar row tall. The full title is in the
-       ride-detail modal the event opens. */
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
     .fc .fc-daygrid-more-link {
       font-size: .66rem !important;
       font-weight: 600;
@@ -722,6 +669,17 @@
       outline-offset: 2px !important;
     }
 
+    /* One-line titles in a ~48px mobile column: both the hand-rolled chips and
+       FullCalendar's events truncate instead of wrapping, or a long café name
+       would stretch the whole calendar row tall. The full title lives in the
+       aria-label and the ride-detail modal. Restored to wrapping at ≥560px. */
+    .cal-day .ride-chip,
+    .fc .fc-event-title {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
     /* --- calendar at ≥560px --- */
     /* The compact single-line chips are the mobile-first default (a wrapped
        title would stretch the ~48px mobile column into a tall cell). On wider
@@ -742,25 +700,25 @@
         max-height: 240px;
       }
 
+      /* Wider columns have vertical room, so let titles wrap instead of
+         truncating. */
+      .cal-day .ride-chip,
+      .fc .fc-event-title {
+        white-space: normal;
+        overflow: visible;
+        overflow-wrap: anywhere;
+      }
+
       .cal-day .ride-chip {
         display: flex;
         align-items: center;
         padding: 8px 4px;
         line-height: 1.25;
-        white-space: normal;
-        overflow: visible;
-        overflow-wrap: anywhere;
         min-height: 44px;
       }
 
       .fc .fc-daygrid-event {
         min-height: 44px;
-      }
-
-      .fc .fc-event-title {
-        white-space: normal;
-        overflow: visible;
-        overflow-wrap: anywhere;
       }
 
       .fc .fc-daygrid-more-link {

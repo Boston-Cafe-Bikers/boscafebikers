@@ -3,20 +3,14 @@
 from __future__ import annotations
 
 import json
-import sys
 from datetime import datetime, timedelta
-from pathlib import Path
-from zoneinfo import ZoneInfo
 
 import pytest
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(REPO_ROOT / "scripts"))
+from helpers import EASTERN, EVENT_PAGE, FIXTURE, REPO_ROOT, RESOLVED_LINKS
 
-import fetch_rides  # noqa: E402
+import fetch_rides
 
-FIXTURE = REPO_ROOT / "tests" / "fixtures" / "sample.ics"
-EASTERN = ZoneInfo("America/New_York")
 # Pinned "now": after the past event, well before the 2030 rides.
 NOW = datetime(2025, 1, 1, 12, 0, tzinfo=EASTERN)
 
@@ -466,7 +460,6 @@ def test_image_merged_from_sidecar(feed_bytes):
 
 # --- Event-page image enrichment -------------------------------------------
 
-EVENT_PAGE = REPO_ROOT / "tests" / "fixtures" / "event-page.html"
 CHARLES_IMAGE = (
     "https://firebasestorage.googleapis.com/v0/b/getpartiful.appspot.com/o/"
     "rides%2Fcharles-loop.jpg?alt=media"
@@ -510,22 +503,7 @@ def _fake_event_page(url: str) -> str:
 
 # The fixture page's custom fields carry maps.app.goo.gl short links. Resolving
 # one is a network call, so every enrich_rides() test injects this instead —
-# the suite must stay fully offline.
-RESOLVED_LINKS = {
-    "https://maps.app.goo.gl/RouteShortLink1?g_st=ic": (
-        "https://maps.google.com/?saddr=Bluebikes,+Cleveland+Circle,+Boston,+MA"
-        "&daddr=Tatte+Bakery,+Boston,+MA&dirflg=b"
-        # Real geocode tokens for those two points (42.335543,-71.150614 and
-        # 42.366823,-71.186803) — see maps_geocode_points.
-        "&geocode=FTf9hQId6lPC-ylRGlXiU3jjiTGY1w16bG3cRw%3D%3D;"
-        "FWd3hgIdjcbB-ykdbpobJHnjiTGRSDuTYi0pzA%3D%3D"
-    ),
-    "https://maps.app.goo.gl/PlaceShortLink1?g_st=ic": (
-        "https://maps.google.com?q=Bluebikes,+Cleveland+Circle&entry=gps"
-    ),
-}
-
-
+# the suite must stay fully offline. RESOLVED_LINKS is shared with test_sync.
 def _fake_resolve_link(url: str) -> str:
     if url in RESOLVED_LINKS:
         return RESOLVED_LINKS[url]
@@ -618,30 +596,61 @@ def test_main_enriches_when_feed_comes_from_live_url(tmp_path, monkeypatch):
     ]
 
 
-def test_load_ride_images_missing_file_is_empty(tmp_path):
-    assert fetch_rides.load_ride_images(tmp_path / "nope.json") == {}
+# --- the UID sidecars -------------------------------------------------------
+# load_ride_images / load_excluded_events / load_group_hosts share one loader;
+# these cases prove each wrapper keeps its own empty/return shape.
+
+SIDECARS = [
+    pytest.param(
+        fetch_rides.load_ride_images,
+        {},
+        '{"abc": "https://example.com/img/a.jpg"}',
+        {"abc": "https://example.com/img/a.jpg"},
+        id="ride-images",
+    ),
+    pytest.param(
+        fetch_rides.load_excluded_events,
+        set(),
+        '{"abc": "a birthday"}',
+        {"abc"},
+        id="excluded-events",
+    ),
+    pytest.param(
+        fetch_rides.load_group_hosts,
+        set(),
+        '{"abc": "Boston Cafe Bikers"}',
+        {"abc"},
+        id="group-hosts",
+    ),
+]
 
 
-def test_load_ride_images_valid_object(tmp_path):
-    sidecar = tmp_path / "ride_images.json"
-    sidecar.write_text('{"abc@partiful.com": "https://example.com/img/a.jpg"}', encoding="utf-8")
-    assert fetch_rides.load_ride_images(sidecar) == {
-        "abc@partiful.com": "https://example.com/img/a.jpg"
-    }
+@pytest.mark.parametrize("loader, empty, valid_json, expected", SIDECARS)
+def test_sidecar_missing_file_is_empty(tmp_path, loader, empty, valid_json, expected):
+    assert loader(tmp_path / "nope.json") == empty
 
 
-def test_load_ride_images_malformed_raises(tmp_path):
-    sidecar = tmp_path / "ride_images.json"
+@pytest.mark.parametrize("loader, empty, valid_json, expected", SIDECARS)
+def test_sidecar_valid_object(tmp_path, loader, empty, valid_json, expected):
+    sidecar = tmp_path / "sidecar.json"
+    sidecar.write_text(valid_json, encoding="utf-8")
+    assert loader(sidecar) == expected
+
+
+@pytest.mark.parametrize("loader, empty, valid_json, expected", SIDECARS)
+def test_sidecar_malformed_raises(tmp_path, loader, empty, valid_json, expected):
+    sidecar = tmp_path / "sidecar.json"
     sidecar.write_text("{not json", encoding="utf-8")
     with pytest.raises(fetch_rides.FeedError):
-        fetch_rides.load_ride_images(sidecar)
+        loader(sidecar)
 
 
-def test_load_ride_images_non_object_raises(tmp_path):
-    sidecar = tmp_path / "ride_images.json"
-    sidecar.write_text("[1, 2]", encoding="utf-8")
+@pytest.mark.parametrize("loader, empty, valid_json, expected", SIDECARS)
+def test_sidecar_non_object_raises(tmp_path, loader, empty, valid_json, expected):
+    sidecar = tmp_path / "sidecar.json"
+    sidecar.write_text('["abc"]', encoding="utf-8")
     with pytest.raises(fetch_rides.FeedError):
-        fetch_rides.load_ride_images(sidecar)
+        loader(sidecar)
 
 
 def test_main_writes_image_from_sidecar(tmp_path):
@@ -1104,28 +1113,8 @@ def test_no_exclusions_changes_nothing(feed_bytes):
     )
 
 
-def test_load_excluded_events_missing_file_is_empty(tmp_path):
-    assert fetch_rides.load_excluded_events(tmp_path / "nope.json") == set()
-
-
-def test_load_excluded_events_keys_are_the_uids(tmp_path):
-    sidecar = tmp_path / "excluded_events.json"
-    sidecar.write_text('{"abc": "a birthday", "def": ""}', encoding="utf-8")
-    assert fetch_rides.load_excluded_events(sidecar) == {"abc", "def"}
-
-
-def test_load_excluded_events_malformed_raises(tmp_path):
-    sidecar = tmp_path / "excluded_events.json"
-    sidecar.write_text("{not json", encoding="utf-8")
-    with pytest.raises(fetch_rides.FeedError):
-        fetch_rides.load_excluded_events(sidecar)
-
-
-def test_load_excluded_events_non_object_raises(tmp_path):
-    sidecar = tmp_path / "excluded_events.json"
-    sidecar.write_text('["abc"]', encoding="utf-8")
-    with pytest.raises(fetch_rides.FeedError):
-        fetch_rides.load_excluded_events(sidecar)
+# The loader itself is covered once by the SIDECARS parameterisation above;
+# this section keeps the excluded-events behaviour tests.
 
 
 def test_main_honours_the_exclusion_list_in_both_outputs(tmp_path):
@@ -1193,30 +1182,6 @@ def test_excluded_rides_are_absent_from_the_ride_data(name):
 
 GROUP_HOST = "Hs47uq5mucZyXLBJZCda"
 GROUP_FIXTURE = REPO_ROOT / "scripts" / "group_hosts.json"
-
-
-def test_load_group_hosts_missing_file_is_empty(tmp_path):
-    assert fetch_rides.load_group_hosts(tmp_path / "nope.json") == set()
-
-
-def test_load_group_hosts_keys_are_the_user_ids(tmp_path):
-    sidecar = tmp_path / "group_hosts.json"
-    sidecar.write_text('{"Hs47": "Boston Cafe Bikers", "x": ""}', encoding="utf-8")
-    assert fetch_rides.load_group_hosts(sidecar) == {"Hs47", "x"}
-
-
-def test_load_group_hosts_malformed_raises(tmp_path):
-    sidecar = tmp_path / "group_hosts.json"
-    sidecar.write_text("{not json", encoding="utf-8")
-    with pytest.raises(fetch_rides.FeedError):
-        fetch_rides.load_group_hosts(sidecar)
-
-
-def test_load_group_hosts_non_object_raises(tmp_path):
-    sidecar = tmp_path / "group_hosts.json"
-    sidecar.write_text('["Hs47"]', encoding="utf-8")
-    with pytest.raises(fetch_rides.FeedError):
-        fetch_rides.load_group_hosts(sidecar)
 
 
 def test_committed_group_hosts_is_well_formed():

@@ -3,21 +3,17 @@
 from __future__ import annotations
 
 import json
-import sys
 from datetime import datetime, timedelta
 from pathlib import Path
-from zoneinfo import ZoneInfo
 
 import pytest
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(REPO_ROOT / "scripts"))
+from helpers import EASTERN, FIXTURE
 
-import archive_events  # noqa: E402
-import fetch_rides  # noqa: E402
-import ride_fields  # noqa: E402
+import archive_events
+import fetch_rides
+import ride_fields
 
-EASTERN = ZoneInfo("America/New_York")
 # Pinned "now" so "past" never depends on the clock.
 NOW = datetime(2026, 6, 1, 12, 0, tzinfo=EASTERN)
 
@@ -166,20 +162,8 @@ def test_naive_and_offset_starts_are_both_comparable():
 # sync hands this script the previous site/events.json, and app.js just
 # concatenates the archive onto events.json, so archiving a ride that is still
 # in the upcoming list would draw it on the calendar twice — once dimmed from
-# the archive and once live.
-
-
-def test_grace_period_matches_fetch_rides():
-    """Two stdlib/deps boundaries, one number — and neither re-declares it.
-
-    `is` and not `==`: the number lives in scripts/ride_fields.py (stdlib-only,
-    so this module can import it), and a module that quietly went back to its
-    own `timedelta(hours=1)` would still compare equal today and drift the day
-    the hour changes.
-    """
-    assert archive_events.GRACE_PERIOD is ride_fields.GRACE_PERIOD
-    assert fetch_rides.GRACE_PERIOD is ride_fields.GRACE_PERIOD
-    assert ride_fields.GRACE_PERIOD == timedelta(hours=1)
+# the archive and once live. The "one definition, no re-declare" assertion
+# lives with the rule itself in test_ride_fields.py.
 
 
 def test_a_ride_inside_its_grace_hour_is_not_archived():
@@ -205,7 +189,7 @@ def test_a_graced_ride_is_never_in_the_archive_and_events_json_at_once():
     Parsed from the real fixture 30 minutes after the Charles ride starts, so
     the ride is genuinely mid-grace rather than hand-built.
     """
-    feed = (REPO_ROOT / "tests" / "fixtures" / "sample.ics").read_bytes()
+    feed = FIXTURE.read_bytes()
     charles = "evt-future-charles-loop@partiful.com"
     now = datetime(2030, 6, 22, 10, 0, tzinfo=EASTERN)  # start 09:30 + 30 min
     upcoming = fetch_rides.parse_events(feed, now=now)
@@ -217,7 +201,7 @@ def test_a_graced_ride_is_never_in_the_archive_and_events_json_at_once():
 
 
 def test_the_ride_reaches_the_archive_once_its_grace_hour_is_over():
-    feed = (REPO_ROOT / "tests" / "fixtures" / "sample.ics").read_bytes()
+    feed = FIXTURE.read_bytes()
     charles = "evt-future-charles-loop@partiful.com"
     now = datetime(2030, 6, 22, 11, 0, tzinfo=EASTERN)  # start + 90 min
     upcoming = fetch_rides.parse_events(feed, now=now)

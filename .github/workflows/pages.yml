@@ -40,19 +40,21 @@ jobs:
           ref: master
           path: prod-src
 
-      - name: Check whether a dev branch exists
-        id: devcheck
+      - name: Check which optional branches exist
+        id: branches
         run: |
-          if git ls-remote --exit-code --heads \
-              "https://github.com/${{ github.repository }}.git" dev >/dev/null 2>&1; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "No dev branch; publishing master only."
-            echo "exists=false" >> "$GITHUB_OUTPUT"
-          fi
+          repo="https://github.com/${{ github.repository }}.git"
+          for branch in dev data; do
+            if git ls-remote --exit-code --heads "$repo" "$branch" >/dev/null 2>&1; then
+              echo "$branch=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "$branch=false" >> "$GITHUB_OUTPUT"
+              echo "No $branch branch; publishing without it."
+            fi
+          done
 
       - name: Check out dev (preview)
-        if: steps.devcheck.outputs.exists == 'true'
+        if: steps.branches.outputs.dev == 'true'
         uses: actions/checkout@v4
         with:
           ref: dev
@@ -62,19 +64,8 @@ jobs:
       # the one copy lives on the orphan `data` branch, laid out exactly like
       # site/. Guarded like dev, so a fork without the branch publishes its
       # built-in ride and gallery fallbacks rather than failing.
-      - name: Check whether a data branch exists
-        id: datacheck
-        run: |
-          if git ls-remote --exit-code --heads \
-              "https://github.com/${{ github.repository }}.git" data >/dev/null 2>&1; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "No data branch; publishing with ride/gallery fallbacks."
-            echo "exists=false" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Check out the generated site data
-        if: steps.datacheck.outputs.exists == 'true'
+        if: steps.branches.outputs.data == 'true'
         uses: actions/checkout@v4
         with:
           ref: data

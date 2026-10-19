@@ -35,9 +35,10 @@ import requests
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+import ride_fields  # noqa: E402
 import route_map  # noqa: E402
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+REPO_ROOT = ride_fields.REPO_ROOT
 DEFAULT_OUT_DIR = REPO_ROOT / "site" / "maps"
 DEFAULT_URL_PREFIX = "maps"
 BROUTER_URL = "https://brouter.de/brouter"
