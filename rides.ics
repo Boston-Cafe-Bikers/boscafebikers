@@ -26,7 +26,7 @@ END:STANDARD
 END:VTIMEZONE
 BEGIN:VEVENT
 UID:AU2LwcPciWNGRQu9v0k2
-DTSTAMP:20261019T154117Z
+DTSTAMP:20261021T163213Z
 DTSTART;TZID=America/New_York:20261021T180000
 SUMMARY:Streetwise Talk @ Aeronaut
 LOCATION:Aeronaut\, 14 Tyler St\, Somerville\, MA
@@ -39,8 +39,8 @@ URL:https://partiful.com/e/AU2LwcPciWNGRQu9v0k2
 END:VEVENT
 BEGIN:VEVENT
 UID:kJ7dHkHGj3ZXSU8IfUHD
-DTSTAMP:20261019T154117Z
-DTSTART;TZID=America/New_York:20261024T101500
+DTSTAMP:20261021T163213Z
+DTSTART;TZID=America/New_York:20261024T100000
 SUMMARY:Tour de Streets
 LOCATION:Livable Streets Alliance\, 100 Sidney St\, Cambridge\, MA
 DESCRIPTION:Join us for Tour de Streets!\nTour de Streets is an annual fund
@@ -48,19 +48,18 @@ DESCRIPTION:Join us for Tour de Streets!\nTour de Streets is an annual fund
   food\, drinks\, + activities provided by local vendors!\n\nTo ride with B
  oston Cafe Bikers you must be registered (it’s free!) so use the link ab
  ove to sign up\n\nThe bike ride is 2 hours long\, ~12 miles starting at 10
- :15: A leisurely ride for people of all abilities. Includes riding along t
- he Charles River and on new bicycle infrastructure around Boston\, Cambrid
- ge \,and Somerville.\n\nDate: Saturday October 24  10:30 AM - 2:30 PM\nLoc
- ation: LivableStreets Office\, 100 Sidney Street\, Cambridge 02139 (near C
- entral Square).\n\nThis is a great opportunity to connect with partners an
- d friends as we celebrate LivableStreets’ accomplishments and ensure we 
- have the resources to fund our work in the coming years.\n\nRSVP: https://
- partiful.com/e/kJ7dHkHGj3ZXSU8IfUHD
+ :30. A leisurely ride for people of all abilities. Includes riding on new 
+ bicycle infrastructure around Boston and Cambridge.\n\nDate: Saturday Octo
+ ber 24  10 AM - 2:30 PM\nLocation: LivableStreets Office\, 100 Sidney Stre
+ et\, Cambridge 02139 (near Central Square).\n\nThis is a great opportunity
+  to connect with partners and friends as we celebrate LivableStreets’ ac
+ complishments and ensure we have the resources to fund our work in the com
+ ing years.\n\nRSVP: https://partiful.com/e/kJ7dHkHGj3ZXSU8IfUHD
 URL:https://partiful.com/e/kJ7dHkHGj3ZXSU8IfUHD
 END:VEVENT
 BEGIN:VEVENT
 UID:2lujnt4TCoLinzEYBvVC
-DTSTAMP:20261019T154117Z
+DTSTAMP:20261021T163213Z
 DTSTART;TZID=America/New_York:20261031T110000
 SUMMARY:What’s Scarier Than Mass Ave?
 LOCATION:Central Square\, Cambridge\, MA
