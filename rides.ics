@@ -25,21 +25,8 @@ RRULE:FREQ=YEARLY;BYMONTH=11;BYDAY=1SU
 END:STANDARD
 END:VTIMEZONE
 BEGIN:VEVENT
-UID:AU2LwcPciWNGRQu9v0k2
-DTSTAMP:20261021T163213Z
-DTSTART;TZID=America/New_York:20261021T180000
-SUMMARY:Streetwise Talk @ Aeronaut
-LOCATION:Aeronaut\, 14 Tyler St\, Somerville\, MA
-DESCRIPTION:Streetwise is monthly speaker series focused on sharing wisdom 
- along the path to complete streets. Third Wednesday of every month\, 6:30 
- to 7:30 PM\, live at Aeronaut Brewery. This talk will be shared by Boston 
- Cafe Biker’s very own Aman Shankardass and Chris Armstrong!\n\nRSVP: htt
- ps://partiful.com/e/AU2LwcPciWNGRQu9v0k2
-URL:https://partiful.com/e/AU2LwcPciWNGRQu9v0k2
-END:VEVENT
-BEGIN:VEVENT
 UID:kJ7dHkHGj3ZXSU8IfUHD
-DTSTAMP:20261021T163213Z
+DTSTAMP:20261022T030623Z
 DTSTART;TZID=America/New_York:20261024T100000
 SUMMARY:Tour de Streets
 LOCATION:Livable Streets Alliance\, 100 Sidney St\, Cambridge\, MA
@@ -59,7 +46,7 @@ URL:https://partiful.com/e/kJ7dHkHGj3ZXSU8IfUHD
 END:VEVENT
 BEGIN:VEVENT
 UID:2lujnt4TCoLinzEYBvVC
-DTSTAMP:20261021T163213Z
+DTSTAMP:20261022T030623Z
 DTSTART;TZID=America/New_York:20261031T110000
 SUMMARY:What’s Scarier Than Mass Ave?
 LOCATION:Central Square\, Cambridge\, MA
