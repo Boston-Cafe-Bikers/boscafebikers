@@ -31,6 +31,7 @@ from helpers import (
 import fetch_rides
 import geocode_cafes
 import render_route_maps
+import ride_fields
 import route_map
 import sync
 
@@ -240,6 +241,37 @@ def test_the_calendar_is_byte_stable_though_updated_at_moves(data_dir):
     assert b"DTSTAMP:" in calendar
 
 
+def test_the_subscribed_calendar_keeps_rides_after_they_happen(seeded):
+    """A ride that moves from upcoming to the archive must not vanish for
+    subscribers: their calendar would silently lose the event the morning
+    after it happened."""
+    def calendar_uids() -> set:
+        calendar = (seeded / "rides.ics").read_text(encoding="utf-8")
+        return {
+            line.split(":", 1)[1]
+            for line in calendar.splitlines()
+            if line.startswith("UID:")
+        }
+
+    do_run(seeded)
+    assert calendar_uids() == {
+        "evt-future-charles-loop@partiful.com",
+        "evt-future-minuteman@partiful.com",
+        "evt-past-jamaica-pond@partiful.com",
+    }
+
+    # Far enough ahead that both fixture rides have happened and dropped out
+    # of the upcoming feed; the archive is now their only copy.
+    after = datetime(2031, 1, 1, 12, 0, tzinfo=EASTERN)
+    do_run(seeded, now=after)
+
+    assert calendar_uids() == {
+        "evt-past-jamaica-pond@partiful.com",
+        "evt-future-charles-loop@partiful.com",
+        "evt-future-minuteman@partiful.com",
+    }
+
+
 # --- one test per ordering rule -------------------------------------------
 
 
@@ -403,6 +435,54 @@ def test_an_excluded_uid_is_purged_from_an_archive_that_already_holds_it(data_di
     assert payload_of(data_dir / "events-past.json")["events"] == []
 
 
+# --- destination overrides -------------------------------------------------
+
+
+def test_a_destination_override_beats_the_feeds_past_location(data_dir, tmp_path):
+    """The feed still exports the meeting point for this UID on every run;
+    merge_ride would let that non-null value overwrite a hand fix. The sidecar
+    is re-applied after the merge, so the destination survives every sync."""
+    destinations = tmp_path / "ride_destinations.json"
+    destinations.write_text(
+        json.dumps(
+            {
+                "evt-past-jamaica-pond@partiful.com":
+                    "Momma's, 525 Western Ave, Brighton, MA 02135",
+            }
+        ),
+        encoding="utf-8",
+    )
+    do_run(data_dir, ride_destinations=destinations)
+
+    archived = payload_of(data_dir / "events-past.json")["events"][0]
+    assert archived["location"] == "Momma's, 525 Western Ave, Brighton, MA 02135"
+    assert archived["place_name"] == "Momma's"
+    assert archived["address"] == "525 Western Ave, Brighton, MA 02135"
+
+    # And it is stable: the next sync reads the same feed location and must
+    # land on the same result rather than drifting back.
+    before = snapshot(data_dir)
+    second = do_run(data_dir, now=LATER, ride_destinations=destinations)
+    assert second.files.changed() == []
+    assert snapshot(data_dir) == before
+
+
+def test_an_upcoming_ride_honours_its_override_too(data_dir, tmp_path):
+    destinations = tmp_path / "ride_destinations.json"
+    destinations.write_text(
+        json.dumps(
+            {
+                "evt-future-charles-loop@partiful.com":
+                    "Sip Café, 0 Post Office Square, Boston, MA 02110",
+            }
+        ),
+        encoding="utf-8",
+    )
+    do_run(data_dir, ride_destinations=destinations)
+    upcoming = {r["uid"]: r for r in payload_of(data_dir / "events.json")["events"]}
+    assert upcoming["evt-future-charles-loop@partiful.com"]["place_name"] == "Sip Café"
+
+
 # --- offline is really offline --------------------------------------------
 
 
@@ -503,6 +583,7 @@ def test_every_published_path_derives_from_the_data_dir(tmp_path):
     # The sidecars are code, not data: they stay in scripts/.
     assert cfg.ride_images == fetch_rides.RIDE_IMAGES_PATH
     assert cfg.excluded_events == fetch_rides.EXCLUDED_EVENTS_PATH
+    assert cfg.ride_destinations == ride_fields.RIDE_DESTINATIONS_PATH
 
 
 def test_the_step_list_is_the_documented_pipeline():

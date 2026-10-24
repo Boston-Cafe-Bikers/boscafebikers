@@ -110,6 +110,7 @@ class Config:
     ride_images: Path = fetch_rides.RIDE_IMAGES_PATH
     excluded_events: Path = fetch_rides.EXCLUDED_EVENTS_PATH
     group_hosts: Path = fetch_rides.GROUP_HOSTS_PATH
+    ride_destinations: Path = ride_fields.RIDE_DESTINATIONS_PATH
     now: Optional[datetime] = None
     enrich_limit: int = DEFAULT_ENRICH_LIMIT
     poster_limit: int = DEFAULT_POSTER_LIMIT
@@ -122,6 +123,7 @@ class Config:
         self.ride_images = Path(self.ride_images)
         self.excluded_events = Path(self.excluded_events)
         self.group_hosts = Path(self.group_hosts)
+        self.ride_destinations = Path(self.ride_destinations)
         self.url_prefix = str(self.url_prefix).strip("/")
         now = self.now or datetime.now(timezone.utc)
         if now.tzinfo is None:
@@ -631,12 +633,18 @@ def step_fetch(run: Run) -> None:
         run.unhosted = unhosted
         run.excluded |= unhosted
         run.note(f"dropped {len(unhosted)} event(s) not hosted by the group")
-    # The precomputed display fields (grace_until, place_name, address, year,
-    # each route's start_name/end_name) — after enrichment, so the routes it
-    # just found are named too. Pure functions of what is already stored, so
-    # this needs no network and every stored ride can be re-derived for free.
-    rides = ride_fields.derive_all(rides)
-    run.feed_past = ride_fields.derive_all(run.feed_past)
+    # Manual destination fixes first, then the precomputed display fields
+    # (grace_until, place_name, address, year, each route's start_name/end_name)
+    # — after enrichment, so the routes it just found are named too. Pure
+    # functions of what is already stored, so this needs no network and every
+    # stored ride can be re-derived for free.
+    destinations = archive_events.load_location_overrides(config.ride_destinations)
+    rides = ride_fields.derive_all(
+        ride_fields.apply_location_overrides(rides, destinations)
+    )
+    run.feed_past = ride_fields.derive_all(
+        ride_fields.apply_location_overrides(run.feed_past, destinations)
+    )
     run.payload = fetch_rides.build_payload(rides, now=config.now)
     run.note(
         f"{len(rides)} upcoming ride(s), {len(run.feed_past)} already-happened "
@@ -656,14 +664,20 @@ def step_archive(run: Run) -> None:
     existing = run.files.read_json(config.archive_path, default={}) or {}
     run.archive_before = existing.get("events") or []
     sources = [committed.get("events") or [], run.feed_past]
-    # Derived on the *merged* result: merge_ride's "None never overwrites" rule
-    # decides which location survives, and the display fields have to follow it
-    # rather than an older entry's. Running over the whole archive every sync is
-    # also what backfills these fields — and propagates a rule change — without
-    # a script and without touching the network.
+    # Overrides are applied to the merged result, before `derive`: the feed's
+    # past export still carries the meeting point for these UIDs and
+    # merge_ride lets a non-null source value win, so this is what keeps the
+    # manual destination. Derived on the merged result, so the display fields
+    # follow the surviving location. Running over the whole archive every sync
+    # is also what backfills these fields — and propagates a rule change —
+    # without a script and without touching the network.
+    destinations = archive_events.load_location_overrides(config.ride_destinations)
     run.archive = ride_fields.derive_all(
-        archive_events.merge_archive(
-            run.archive_before, sources, config.now, excluded=run.excluded
+        ride_fields.apply_location_overrides(
+            archive_events.merge_archive(
+                run.archive_before, sources, config.now, excluded=run.excluded
+            ),
+            destinations,
         )
     )
     run.save_archive()
@@ -849,6 +863,9 @@ def step_export_ics(run: Run) -> None:
 
     From the *published* file, never the fresh payload: DTSTAMP comes from
     ``updated_at``, so exporting the fetch would restamp rides.ics every run.
+    The archive is included as well — a ride that has happened has left
+    events.json, and a subscriber should keep the event rather than watch the
+    calendar silently lose yesterday's ride.
     """
     config = run.config
     payload = None
@@ -857,7 +874,8 @@ def step_export_ics(run: Run) -> None:
     if not isinstance(payload, dict):
         payload = run.payload or {}
     run.files.write_bytes(
-        config.rides_ics_path, export_ics.build_calendar(payload).encode("utf-8")
+        config.rides_ics_path,
+        export_ics.build_calendar(payload, run.archive or []).encode("utf-8"),
     )
 
 
@@ -1392,6 +1410,13 @@ def build_parser() -> argparse.ArgumentParser:
         f"(default: {fetch_rides.GROUP_HOSTS_PATH})",
     )
     parser.add_argument(
+        "--ride-destinations",
+        default=str(ride_fields.RIDE_DESTINATIONS_PATH),
+        help="UID → destination sidecar for rides whose Partiful location is "
+        "the meeting point "
+        f"(default: {ride_fields.RIDE_DESTINATIONS_PATH})",
+    )
+    parser.add_argument(
         "--now",
         type=parse_now,
         help="pin the clock to this ISO timestamp (tests; Eastern if naive)",
@@ -1432,6 +1457,7 @@ def main(argv: list = None) -> int:
         ride_images=args.ride_images,
         excluded_events=args.excluded_events,
         group_hosts=args.group_hosts,
+        ride_destinations=args.ride_destinations,
         now=args.now,
         enrich_limit=args.enrich_limit,
         poster_limit=args.poster_limit,

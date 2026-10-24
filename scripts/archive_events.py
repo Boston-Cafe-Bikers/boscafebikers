@@ -43,6 +43,10 @@ DEFAULT_ARCHIVE = REPO_ROOT / "site" / "events-past.json"
 # next sync — no hand editing of events-past.json, which the feed would only
 # re-fill.
 DEFAULT_EXCLUDED = ride_fields.EXCLUDED_EVENTS_PATH
+# UID → destination location for rides whose Partiful Location is the meeting
+# point. Applied after the merge, because the feed's past export still carries
+# that start location and would otherwise overwrite a manual fix every sync.
+DEFAULT_DESTINATIONS = ride_fields.RIDE_DESTINATIONS_PATH
 # The same grace hour fetch_rides.py keeps a just-started ride in the upcoming
 # export for (a latecomer can still catch the group). It has to be the same
 # number here: the sync feeds this script the *previous* site/events.json, so a
@@ -84,6 +88,32 @@ def load_excluded(path: Path) -> set[str]:
     if not isinstance(data, dict):
         raise ArchiveError(f"{path} must be a JSON object of UID → note")
     return {str(uid) for uid in data}
+
+
+def load_location_overrides(path: Path | None = None) -> dict[str, str]:
+    """The UID → destination map. A missing file means "no overrides".
+
+    Values are full `location` strings ("Café, street, city, MA"); the display
+    fields are derived from them later. A malformed file is an error rather
+    than a silent skip: a typo here would leave a ride showing its start.
+    """
+    path = path or DEFAULT_DESTINATIONS
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return {}
+    except (OSError, ValueError) as exc:
+        raise ArchiveError(f"could not read {path}: {exc}") from None
+    if not isinstance(data, dict):
+        raise ArchiveError(f"{path} must be a JSON object of UID → destination")
+    overrides = {}
+    for uid, destination in data.items():
+        if not isinstance(destination, str) or not destination.strip():
+            raise ArchiveError(
+                f"{path}: destination for {uid!r} must be a non-empty string"
+            )
+        overrides[str(uid)] = destination.strip()
+    return overrides
 
 
 def ride_key(ride: dict) -> str:
@@ -199,17 +229,23 @@ def run(
     source_paths: list[Path],
     now: datetime | None = None,
     excluded_path: Path | None = None,
+    destinations_path: Path | None = None,
 ) -> bool:
     """Update the archive from the sources. True when the file was rewritten."""
     now = (now or datetime.now(timezone.utc)).astimezone(LOCAL_TZ)
     existing = load_payload(archive_path, required=False)
     sources = [load_payload(path)["events"] for path in source_paths]
     excluded = load_excluded(excluded_path or DEFAULT_EXCLUDED)
-    # Derived last, on the merged result, so `merge_ride`'s "None never
-    # overwrites" rule can't leave a stale place_name behind: whatever the
-    # merge settled on is what the display fields are computed from.
+    destinations = load_location_overrides(
+        destinations_path or DEFAULT_DESTINATIONS
+    )
+    # Overrides are applied to the merged result, before `derive`, because the
+    # feed's past export still carries the meeting point for these UIDs and
+    # `merge_ride` lets a non-null source value win. Derived last, so the
+    # override's place_name/address are what get written.
+    merged = merge_archive(existing["events"], sources, now, excluded=excluded)
     rides = ride_fields.derive_all(
-        merge_archive(existing["events"], sources, now, excluded=excluded)
+        ride_fields.apply_location_overrides(merged, destinations)
     )
     if rides == existing["events"]:
         return False
@@ -230,6 +266,12 @@ def main(argv: list[str] | None = None) -> int:
         help=f"UID → note JSON of events to leave out (default: {DEFAULT_EXCLUDED})",
     )
     parser.add_argument(
+        "--ride-destinations",
+        default=str(DEFAULT_DESTINATIONS),
+        help="UID → destination JSON for rides whose Partiful location is the "
+        f"meeting point (default: {DEFAULT_DESTINATIONS})",
+    )
+    parser.add_argument(
         "sources",
         nargs="+",
         metavar="SOURCE",
@@ -243,6 +285,7 @@ def main(argv: list[str] | None = None) -> int:
             archive_path,
             [Path(p) for p in args.sources],
             excluded_path=Path(args.excluded),
+            destinations_path=Path(args.ride_destinations),
         )
     except ArchiveError as exc:
         print(f"archive_events: {exc}", file=sys.stderr)
