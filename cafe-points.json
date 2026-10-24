@@ -28,6 +28,10 @@
       42.381976,
       -71.106238
     ],
+    "Amba Cafe, 59 First St, Cambridge, MA 02141": [
+      42.368983,
+      -71.077602
+    ],
     "Asaro Bakery & Cafe, 1629 Cambridge St, Cambridge, MA 02138": [
       42.374945,
       -71.109422
@@ -68,6 +72,10 @@
       42.364802,
       -71.102088
     ],
+    "Deer Island, Winthrop, MA 02152": [
+      42.355665,
+      -70.967664
+    ],
     "Dudley Cafe, 15 Warren St, Boston, MA 02119": [
       42.329941,
       -71.083429
@@ -75,6 +83,10 @@
     "Farmer's Horse Coffee, 374 Massachusetts Ave, Boston, MA 02115": [
       42.341906,
       -71.083346
+    ],
+    "Flat Black Coffee, 1170 Washington St, Dorchester Center, MA 02124": [
+      42.284952,
+      -71.071352
     ],
     "Forest Hills Station, Boston, MA": [
       42.300528,
@@ -124,6 +136,10 @@
       42.417887,
       -71.108822
     ],
+    "Lovestruck Books & Cafe, 44 Brattle St, Cambridge, MA 02138": [
+      42.373915,
+      -71.121619
+    ],
     "Meet Point Patisserie Brookline, 3 Kendall St, Brookline, MA": [
       42.327038,
       -71.124504
@@ -131,6 +147,10 @@
     "Michette, 164 Broadway, Somerville, MA 02145": [
       42.38849,
       -71.085886
+    ],
+    "Momma's at The Charles River Speedway, 525 Western Ave, Brighton, MA 02135": [
+      42.361597,
+      -71.144685
     ],
     "Newbery Street Coffee Roasters, 14 Harvard St, Brookline, MA": [
       42.333627,
@@ -168,6 +188,10 @@
       42.330591,
       -71.090765
     ],
+    "Sip Café, 0 Post Office Square, Boston, MA 02110": [
+      42.355907,
+      -71.055533
+    ],
     "Somerville Junction Park, 3 Woodbine St, Somerville, MA": [
       42.391229,
       -71.104416
@@ -176,9 +200,17 @@
       42.352203,
       -71.121381
     ],
+    "The Buttery, 314 Shawmut Ave, Boston, MA 02118": [
+      42.342088,
+      -71.070361
+    ],
     "Tilde, 2376 Massachusetts Ave, Cambridge, MA 02140": [
       42.396774,
       -71.129796
+    ],
+    "Yafa Bakery & Café, 594 Somerville Ave, Somerville, MA 02143": [
+      42.383732,
+      -71.109225
     ]
   },
   "missing": [
