@@ -1,14 +1,20 @@
 #!/usr/bin/env python3
-"""Re-export the upcoming rides as a public, subscribable calendar.
+"""Re-export every ride as a public, subscribable calendar.
 
-    python scripts/export_ics.py <events.json> --out site/rides.ics
+    python scripts/export_ics.py <events.json> --past <events-past.json> \
+        --out site/rides.ics
 
 The site already lets a visitor download one ride at a time (the browser builds
-that .ics in site/js/ride-card.js). This writes the *whole* upcoming list once,
-so a visitor can subscribe to the URL and let their calendar app keep itself up
-to date. It reads only the committed events payload — it never touches the
+that .ics in site/js/ride-card.js). This writes the *whole* list once, so a
+visitor can subscribe to the URL and let their calendar app keep itself up to
+date. It reads only the committed events payloads — it never touches the
 private feed URL (PARTIFUL_ICS_URL), and nothing derived from it is in the
 payload either.
+
+Past rides come from the archive too. A ride leaves events.json as soon as it
+starts, so exporting only that file made the event disappear from every
+subscriber's calendar the next morning. The archive is append-only, so once a
+ride is on the calendar it stays there.
 
 Two rules keep the file from churning in git every six hours:
 
@@ -199,8 +205,35 @@ def event_lines(event: dict, stamp: str) -> list[str]:
     return lines
 
 
-def build_calendar(payload: dict) -> str:
-    """The whole VCALENDAR as a CRLF string. Zero rides is still valid."""
+def combine_events(upcoming: list, past: list | None = None) -> list:
+    """The upcoming rides plus the archived ones, each UID exactly once.
+
+    A ride can briefly be in both files around its start time, and a duplicate
+    UID is an update to the same calendar event rather than a second one. The
+    upcoming copy wins (it is the one the feed just refreshed), and the result
+    is chronological so the file reads like the calendar it represents.
+    """
+    merged: dict[str, dict] = {}
+    for event in list(past or []) + list(upcoming or []):
+        if not isinstance(event, dict):
+            continue
+        merged[event.get("uid") or fallback_uid(event)] = event
+    return sorted(
+        merged.values(),
+        key=lambda event: (
+            str(event.get("start") or ""),
+            str(event.get("uid") or fallback_uid(event)),
+        ),
+    )
+
+
+def build_calendar(payload: dict, past: list | None = None) -> str:
+    """The whole VCALENDAR as a CRLF string. Zero rides is still valid.
+
+    `past` is the archive's ride list (events-past.json's `events`); `payload`
+    supplies the upcoming rides and the DTSTAMP. The stamp stays tied to the
+    upcoming payload so a quiet run leaves the bytes alone.
+    """
     stamp = dtstamp(payload.get("updated_at"))
     lines = [
         "BEGIN:VCALENDAR",
@@ -214,7 +247,7 @@ def build_calendar(payload: dict) -> str:
         "X-PUBLISHED-TTL:" + REFRESH,
     ]
     lines.extend(VTIMEZONE)
-    for event in payload.get("events") or []:
+    for event in combine_events(payload.get("events") or [], past):
         lines.extend(event_lines(event, stamp))
     lines.append("END:VCALENDAR")
     return "\r\n".join(fold_line(line) for line in lines) + "\r\n"
@@ -233,9 +266,12 @@ def load_payload(path: Path) -> dict:
     return payload
 
 
-def export(source: Path, out: Path) -> bool:
+def export(source: Path, out: Path, past_source: Path | None = None) -> bool:
     """Write the calendar for `source` to `out`. True when the bytes changed."""
-    calendar = build_calendar(load_payload(source)).encode("utf-8")
+    past = None
+    if past_source is not None:
+        past = load_payload(past_source).get("events") or []
+    calendar = build_calendar(load_payload(source), past).encode("utf-8")
     try:
         if out.read_bytes() == calendar:
             return False
@@ -251,10 +287,18 @@ def export(source: Path, out: Path) -> bool:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("source", help="an events.json payload (upcoming rides)")
+    parser.add_argument(
+        "--past",
+        help="an events-past.json payload; its rides stay on the calendar",
+    )
     parser.add_argument("--out", default="site/rides.ics", help="calendar file to write")
     args = parser.parse_args(sys.argv[1:] if argv is None else argv)
     try:
-        changed = export(Path(args.source), Path(args.out))
+        changed = export(
+            Path(args.source),
+            Path(args.out),
+            Path(args.past) if args.past else None,
+        )
     except ExportError as exc:
         print(f"export_ics: {exc}", file=sys.stderr)
         return 1

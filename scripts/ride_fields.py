@@ -40,6 +40,12 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 # to purge an already-archived one. One path so they can't disagree.
 EXCLUDED_EVENTS_PATH = REPO_ROOT / "scripts" / "excluded_events.json"
 
+# UID → destination location. Partiful's single Location field is the meeting
+# point on some rides, so a few archived rides would otherwise show the start
+# as the café. The sync re-applies these after every merge: manual fixes live
+# here, not in the generated data branch, so a feed re-export can't undo them.
+RIDE_DESTINATIONS_PATH = REPO_ROOT / "scripts" / "ride_destinations.json"
+
 # A ride does not stop being "the next ride" the instant it starts: latecomers
 # still catch the group at the dock. This is the one definition — fetch_rides.py
 # (the upcoming/past filter) and archive_events.py (what counts as history) both
@@ -162,3 +168,24 @@ def derive(event: dict) -> dict:
 def derive_all(events: list) -> list:
     """`derive` over a list of events, as a new list."""
     return [derive(event) for event in events]
+
+
+def apply_location_overrides(events: list, overrides: dict | None) -> list:
+    """`events` with each UID's `location` replaced from `overrides`.
+
+    Partiful has one Location field and the organizer sometimes fills it with
+    the meeting point. `overrides` is the hand-kept UID → destination map
+    (`scripts/ride_destinations.json`); applying it after the archive merge is
+    what keeps a feed re-export from putting the start back. Pure and
+    non-mutating, like `derive`, so it is safe to run on every sync.
+    """
+    overrides = overrides or {}
+    out = []
+    for event in events:
+        if isinstance(event, dict):
+            uid = str(event.get("uid") or "")
+            replacement = overrides.get(uid)
+            if replacement:
+                event = {**event, "location": replacement}
+        out.append(event)
+    return out

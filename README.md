@@ -120,6 +120,17 @@ with a short note and commit. The next sync drops it everywhere, including
 from `events-past.json` if it was already archived. Deleting it from that file
 by hand doesn't stick: the sync would archive it again from the feed.
 
+**Rides whose Partiful location is the meeting point, not the café.** Some past
+rides archived with the start location because Partiful only stored a meeting
+point (or a maps link) and the destination lived in the description. Editing
+`events-past.json` by hand doesn't stick: the feed re-exports that past ride
+with its non-null location every run, and the archive lets a source value
+overwrite the stored one. Add the `uid` to `scripts/ride_destinations.json`
+mapping it to the destination (`"Café, 1 Main St, City, MA 02139"` — the same
+shape as any `location`) and commit. The sync re-applies the sidecar to the
+merged archive on every run, so the fix survives, and `place_name`/`address`
+follow it. A missing or empty sidecar changes nothing.
+
 **Instagram gallery.** `scripts/sync_instagram.py` uses an Instagram User
 access token only inside the sync runner to fetch the latest nine posts from
 `@bostoncafebikers`. Images, carousel covers and Reel/video thumbnails are
@@ -132,7 +143,7 @@ stay visible on a fresh checkout or through any API/token failure. The
 Instagram step is fail-soft and preserves the last successful cache rather
 than blocking ride updates.
 
-The sync also re-exports every upcoming ride as a public calendar feed at `rides.ics` — subscribe to <https://cafebikers.org/rides.ics> (or the `webcal://` form in Apple Calendar) and new rides appear on their own.
+The sync also re-exports every ride — upcoming and archived — as a public calendar feed at `rides.ics` — subscribe to <https://cafebikers.org/rides.ics> (or the `webcal://` form in Apple Calendar) and new rides appear on their own. Past rides stay in the feed after they leave `events.json`, so a subscriber's calendar keeps yesterday's ride instead of losing it.
 
 ### The `data` branch
 

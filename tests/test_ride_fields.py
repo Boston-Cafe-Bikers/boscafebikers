@@ -221,3 +221,41 @@ def test_derive_all_maps_the_list():
     out = ride_fields.derive_all([ride(), ride(uid="b")])
     assert [r["place_name"] for r in out] == ["O'Some Café", "O'Some Café"]
     assert ride_fields.derive_all([]) == []
+
+
+# --- manual destination overrides -----------------------------------------
+
+
+def test_location_override_replaces_only_its_ride():
+    events = [
+        ride(uid="a", location="Start Plaza, 1 Start St, Boston, MA"),
+        ride(uid="b", location=CAFE),
+    ]
+    out = ride_fields.apply_location_overrides(
+        events, {"a": "Lovestruck Books, 44 Brattle St, Cambridge, MA 02138"}
+    )
+    assert out[0]["location"] == "Lovestruck Books, 44 Brattle St, Cambridge, MA 02138"
+    assert out[1]["location"] == CAFE
+
+
+def test_location_override_does_not_mutate_its_argument():
+    original = ride(uid="a", location="Start Plaza")
+    before = repr(original)
+    ride_fields.apply_location_overrides([original], {"a": "Café, MA"})
+    assert repr(original) == before
+
+
+def test_location_override_is_a_no_op_without_a_map():
+    alone = ride(uid="a")
+    assert ride_fields.apply_location_overrides([alone], None)[0] is alone
+    assert ride_fields.apply_location_overrides([alone], {})[0] is alone
+
+
+def test_derive_after_override_names_the_destination():
+    fixed = ride_fields.apply_location_overrides(
+        [ride(uid="a", location="Start Plaza, 1 Start St, Boston, MA")],
+        {"a": "Café, 2 Main St, Cambridge, MA 02139"},
+    )
+    out = ride_fields.derive(fixed[0])
+    assert out["place_name"] == "Café"
+    assert out["address"] == "2 Main St, Cambridge, MA 02139"
