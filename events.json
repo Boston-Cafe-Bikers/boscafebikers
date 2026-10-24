@@ -1,28 +1,7 @@
 {
-  "updated_at": "2026-10-21T23:06:23.712616-04:00",
-  "count": 2,
+  "updated_at": "2026-10-24T11:19:08.587622-04:00",
+  "count": 1,
   "events": [
-    {
-      "uid": "kJ7dHkHGj3ZXSU8IfUHD",
-      "title": "Tour de Streets",
-      "start": "2026-10-24T10:00:00-04:00",
-      "end": null,
-      "date_display": "Saturday, October 24",
-      "time_display": "10:00 am",
-      "location": "Livable Streets Alliance, 100 Sidney St, Cambridge, MA",
-      "location_hidden": false,
-      "location_url": null,
-      "description": "Join us for Tour de Streets!\nTour de Streets is an annual fundraising event, featuring a walk, bike ride, and a celebration with free food, drinks, + activities provided by local vendors!\n\nTo ride with Boston Cafe Bikers you must be registered (it’s free!) so use the link above to sign up\n\nThe bike ride is 2 hours long, ~12 miles starting at 10:30. A leisurely ride for people of all abilities. Includes riding on new bicycle infrastructure around Boston and Cambridge.\n\nDate: Saturday October 24  10 AM - 2:30 PM\nLocation: LivableStreets Office, 100 Sidney Street, Cambridge 02139 (near Central Square).\n\nThis is a great opportunity to connect with partners and friends as we celebrate LivableStreets’ accomplishments and ensure we have the resources to fund our work in the coming years.",
-      "rsvp_url": "https://partiful.com/e/kJ7dHkHGj3ZXSU8IfUHD",
-      "image": "https://firebasestorage.googleapis.com/v0/b/getpartiful.appspot.com/o/external%2Fuser%2FHs47uq5mucZyXLBJZCda%2FvmXmPPRyfaK00CJ6reYIX?alt=media&token=4bf007cf-0d0a-4d68-8068-589b5471f911",
-      "routes": [],
-      "hosted_by_group": true,
-      "grace_until": "2026-10-24T11:00:00-04:00",
-      "place_name": "Livable Streets Alliance",
-      "address": "100 Sidney St, Cambridge, MA",
-      "year": "2026",
-      "poster": "posters/kJ7dHkHGj3ZXSU8IfUHD.jpg"
-    },
     {
       "uid": "2lujnt4TCoLinzEYBvVC",
       "title": "What’s Scarier Than Mass Ave?",
