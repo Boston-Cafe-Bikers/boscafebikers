@@ -1,6 +1,6 @@
 {
-  "updated_at": "2026-10-24T16:08:21.453266-04:00",
-  "count": 44,
+  "updated_at": "2026-10-31T12:45:05.135990-04:00",
+  "count": 45,
   "events": [
     {
       "uid": "zNzLp290WKRSyUhpwGfI",
@@ -1172,6 +1172,27 @@
       "address": "100 Sidney St, Cambridge, MA",
       "year": "2026",
       "poster": "posters/kJ7dHkHGj3ZXSU8IfUHD.jpg"
+    },
+    {
+      "uid": "2lujnt4TCoLinzEYBvVC",
+      "title": "What’s Scarier Than Mass Ave?",
+      "start": "2026-10-31T11:00:00-04:00",
+      "end": null,
+      "date_display": "Saturday, October 31",
+      "time_display": "11:00 am",
+      "location": "Central Square, Cambridge, MA",
+      "location_hidden": false,
+      "location_url": null,
+      "description": "Take your Halloween costume for a test ride from central square down to Bahn Mi Ba Le & Bakery in Dorchester. Let’s give these cars a fright and show up in numbers!\n\nCOSTUMES AND LIGHTS ENCOURAGED",
+      "rsvp_url": "https://partiful.com/e/2lujnt4TCoLinzEYBvVC",
+      "image": "https://firebasestorage.googleapis.com/v0/b/getpartiful.appspot.com/o/external%2Fuser%2FHs47uq5mucZyXLBJZCda%2F2Rd1eGjCheov9_STnuxeK?alt=media&token=477a6661-48d2-485c-8971-5071f6e47cde",
+      "routes": [],
+      "hosted_by_group": true,
+      "grace_until": "2026-10-31T12:00:00-04:00",
+      "place_name": "Central Square",
+      "address": "Cambridge, MA",
+      "year": "2026",
+      "poster": "posters/2lujnt4TCoLinzEYBvVC.jpg"
     }
   ]
 }
