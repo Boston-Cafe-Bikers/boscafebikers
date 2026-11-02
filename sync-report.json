@@ -1,12 +1,12 @@
 {
   "feed": {
-    "upcoming": 0,
+    "upcoming": 6,
     "past": 35,
     "excluded": 0,
     "unhosted": 0
   },
   "upcoming": {
-    "with_image": 0,
+    "with_image": 6,
     "with_route": 0,
     "routes": 0,
     "routes_measured": 0,
@@ -17,12 +17,12 @@
     "never_checked": 0
   },
   "cafes": {
-    "placed": 53,
+    "placed": 59,
     "unplaced": 1
   },
   "posters": {
-    "mirrored": 26,
-    "mirrorable": 27
+    "mirrored": 30,
+    "mirrorable": 32
   },
   "maps": {
     "rides_with_a_route_and_no_map": 0,
