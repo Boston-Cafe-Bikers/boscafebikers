@@ -365,7 +365,13 @@ POSTER_USER_AGENT = "boscafebikers-sync/1.0"
 # ImageMagick 7 calls it `magick`, 6 called it `convert`; the Ubuntu runner has
 # one of them preinstalled. Neither is a dependency — see poster_resizer().
 IMAGEMAGICK_NAMES = ("magick", "convert")
-MIRROR_HOSTS = ("firebasestorage.googleapis.com",)
+MIRROR_HOSTS = (
+    "firebasestorage.googleapis.com",
+    # The same uploads, reached through the CDN Partiful itself serves them
+    # from. New scrapes store this spelling (fetch_rides.cdn_image_url); the
+    # Firebase one stays accepted because the archive is still full of it.
+    fetch_rides.PARTIFUL_IMGIX_HOST,
+)
 
 
 class PosterFetchError(Exception):
@@ -379,9 +385,15 @@ def mirrorable(url) -> bool:
     that can sit in the cover slot is somebody else's artwork the host picked
     off a shelf — Partiful's own stock posters (assets.getpartiful.com) or a
     Giphy GIF. Copying those into a public repo is not ours to decide, so only
-    the Firebase ones are mirrored and the rest stay hotlinked exactly as they
-    are today. Today's data: 20 of 34 ride photos are mirrorable, 7 are
+    the host's own uploads are mirrored and the rest stay hotlinked exactly as
+    they are today. Today's data: 20 of 34 ride photos are mirrorable, 7 are
     Partiful stock and 7 are Giphy.
+
+    Those uploads have two spellings — the Firebase Storage URL Partiful
+    records, and the ``partiful.imgix.net`` URL Partiful actually serves (see
+    ``fetch_rides.cdn_image_url``). Both name the same object and both are the
+    host's own photo, so both are mirrorable; ``step_posters`` downloads the
+    CDN one either way.
     """
     if not isinstance(url, str):
         return False
@@ -759,8 +771,14 @@ def step_posters(run: Run) -> None:
         fetch = run.seams.fetch_image or fetch_image
         limit = config.poster_limit
         for ride, target in todo[:limit] if limit > 0 else []:
+            # Download the CDN twin whatever the ride has stored: an archived
+            # ride still carries the tokened Firebase URL, and that token can
+            # be revoked (403) while the object is still perfectly readable
+            # through imgix. The stored `image` is left alone — rewriting it
+            # here is the scrape's job, not the mirror's.
+            source = fetch_rides.cdn_image_url(ride.get("image"))
             try:
-                data = fetch(ride.get("image"))
+                data = fetch(source)
             except (PosterFetchError, requests.RequestException, ValueError, TypeError):
                 continue  # transient: no key written, retried next run
             if data is None:

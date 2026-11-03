@@ -460,15 +460,18 @@ def test_image_merged_from_sidecar(feed_bytes):
 
 # --- Event-page image enrichment -------------------------------------------
 
+# What the event page *records* …
 CHARLES_IMAGE = (
     "https://firebasestorage.googleapis.com/v0/b/getpartiful.appspot.com/o/"
     "rides%2Fcharles-loop.jpg?alt=media"
 )
+# … and what it actually *loads*, which is what the scrape now stores.
+CHARLES_CDN = "https://partiful.imgix.net/rides/charles-loop.jpg"
 
 
 def test_extract_event_image_from_fixture_page():
     html = EVENT_PAGE.read_text(encoding="utf-8")
-    assert fetch_rides._extract_event_image(html) == CHARLES_IMAGE
+    assert fetch_rides._extract_event_image(html) == CHARLES_CDN
 
 
 def test_extract_event_image_string_image():
@@ -477,7 +480,7 @@ def test_extract_event_image_string_image():
         '{"props":{"pageProps":{"event":{"image":"' + CHARLES_IMAGE + '"}}}}'
         "</script>"
     )
-    assert fetch_rides._extract_event_image(html) == CHARLES_IMAGE
+    assert fetch_rides._extract_event_image(html) == CHARLES_CDN
 
 
 def test_extract_event_image_falls_back_to_first_firebase_url():
@@ -486,8 +489,71 @@ def test_extract_event_image_falls_back_to_first_firebase_url():
         '<img src="https://firebasestorage.googleapis.com/v0/b/getpartiful'
         '.appspot.com/o/a%2Fb.jpg?alt=media">'
     )
-    assert fetch_rides._extract_event_image(html) == (
-        "https://firebasestorage.googleapis.com/v0/b/getpartiful.appspot.com/o/a%2Fb.jpg?alt=media"
+    assert fetch_rides._extract_event_image(html) == "https://partiful.imgix.net/a/b.jpg"
+
+
+# --- the Firebase → imgix rewrite ------------------------------------------
+#
+# Partiful records a tokened Firebase URL and serves an imgix one. The token is
+# revocable, so the tokened URL is the one that rots: two covers in this
+# group's own feed answered 403 there on 2026-11-03 while imgix served all 32.
+
+TOKENED = (
+    "https://firebasestorage.googleapis.com/v0/b/getpartiful.appspot.com/o/"
+    "external%2Fuser%2FHs47uq5mucZyXLBJZCda%2FxFCbK6pQgrW6MlunyGaBi"
+    "?alt=media&token=9e21e6ec-7c78-44a4-b1f0-62fcc8241523"
+)
+TOKENED_CDN = (
+    "https://partiful.imgix.net/external/user/Hs47uq5mucZyXLBJZCda/"
+    "xFCbK6pQgrW6MlunyGaBi"
+)
+STOCK_POSTER = "https://assets.getpartiful.com/posters/File.png"
+GIPHY_GIF = "https://media2.giphy.com/media/ZcYmkPx47LLh3jIFhi/giphy.gif?cid=c00"
+OTHER_BUCKET = (
+    "https://firebasestorage.googleapis.com/v0/b/someone-else.appspot.com/o/"
+    "a%2Fb.jpg?alt=media"
+)
+NO_OBJECT = "https://firebasestorage.googleapis.com/v0/b/getpartiful.appspot.com/o/"
+
+
+@pytest.mark.parametrize(
+    "url, expected",
+    [
+        # The whole point: the token goes, the object path comes out plain.
+        (TOKENED, TOKENED_CDN),
+        (CHARLES_IMAGE, CHARLES_CDN),
+        # Already rewritten — idempotent, so a re-scrape can't double-rewrite.
+        (TOKENED_CDN, TOKENED_CDN),
+        # Somebody else's artwork, and a hand-written sidecar URL: untouched.
+        (STOCK_POSTER, STOCK_POSTER),
+        (GIPHY_GIF, GIPHY_GIF),
+        ("https://example.com/img/charles.jpg", "https://example.com/img/charles.jpg"),
+        # No imgix source sits behind another app's bucket.
+        (OTHER_BUCKET, OTHER_BUCKET),
+        # Shapes this deliberately does not touch.
+        (NO_OBJECT, NO_OBJECT),
+        ("https://firebasestorage.googleapis.com/", "https://firebasestorage.googleapis.com/"),
+        ("ftp://firebasestorage.googleapis.com/v0/b/getpartiful.appspot.com/o/a",
+         "ftp://firebasestorage.googleapis.com/v0/b/getpartiful.appspot.com/o/a"),
+        # A ride with no photo stays a ride with no photo.
+        (None, None),
+        ("", ""),
+        (42, None),
+    ],
+)
+def test_cdn_image_url_rewrites_only_partiful_uploads(url, expected):
+    assert fetch_rides.cdn_image_url(url) == expected
+
+
+def test_cdn_image_url_requotes_an_awkward_filename():
+    """Encoded on Firebase, plain on imgix — but a space or an accent still
+    has to come back out as a valid URL."""
+    url = (
+        "https://firebasestorage.googleapis.com/v0/b/getpartiful.appspot.com/o/"
+        "rides%2Fcaf%C3%A9%20ride.jpg?alt=media"
+    )
+    assert fetch_rides.cdn_image_url(url) == (
+        "https://partiful.imgix.net/rides/caf%C3%A9%20ride.jpg"
     )
 
 
@@ -521,7 +587,7 @@ def test_enrich_rides_sets_image_on_fixture_ride(feed_bytes):
     assert all(ride["image"] is None for ride in rides)
     assert fetch_rides.enrich_rides(rides, fetch_page=_fake_event_page, resolve_link=_fake_resolve_link, fetch_length=_fake_route_length) == 1
     charles, minuteman = rides
-    assert charles["image"] == CHARLES_IMAGE
+    assert charles["image"] == CHARLES_CDN
     assert minuteman["image"] is None  # page fetch failed → soft, stays null
 
 
