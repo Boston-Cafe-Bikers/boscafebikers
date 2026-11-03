@@ -366,13 +366,9 @@ POSTER_USER_AGENT = "boscafebikers-sync/1.0"
 # ImageMagick 7 calls it `magick`, 6 called it `convert`; the Ubuntu runner has
 # one of them preinstalled. Neither is a dependency — see poster_resizer().
 IMAGEMAGICK_NAMES = ("magick", "convert")
-MIRROR_HOSTS = (
-    "firebasestorage.googleapis.com",
-    # The same uploads, reached through the CDN Partiful itself serves them
-    # from. New scrapes store this spelling (fetch_rides.cdn_image_url); the
-    # Firebase one stays accepted because the archive is still full of it.
-    fetch_rides.PARTIFUL_IMGIX_HOST,
-)
+# Host alone is enough here: only uploads are in Firebase Storage. It is not
+# enough for the CDN — see mirrorable().
+MIRROR_HOSTS = ("firebasestorage.googleapis.com",)
 
 
 class PosterFetchError(Exception):
@@ -392,9 +388,21 @@ def mirrorable(url) -> bool:
 
     Those uploads have two spellings — the Firebase Storage URL Partiful
     records, and the ``partiful.imgix.net`` URL Partiful actually serves (see
-    ``fetch_rides.cdn_image_url``). Both name the same object and both are the
-    host's own photo, so both are mirrorable; ``step_posters`` downloads the
-    CDN one either way.
+    ``fetch_rides.cdn_image_url``). Both name the same object, so both are
+    mirrorable; ``step_posters`` downloads the CDN one either way.
+
+    But the two spellings do not carry the same guarantee. Firebase Storage
+    holds uploads and nothing else, so its *host* is proof enough. The CDN is
+    Partiful's general-purpose image host, and serving their stock posters
+    from it one day would be an entirely ordinary thing for them to do — at
+    which point a host-only rule would quietly start copying other people's
+    artwork into a public repo, with nothing to notice. So for the CDN the
+    proof has to come from the path: ``external/user/`` is where Partiful
+    files what a user uploaded, and all 32 of this group's covers are under
+    it. (Checked 2026-11-03: the stock poster
+    ``assets.getpartiful.com/posters/File.png`` is 404 at the same path on
+    imgix, so today the distinction is theory — which is exactly when it is
+    cheap to encode.)
     """
     if not isinstance(url, str):
         return False
@@ -402,6 +410,8 @@ def mirrorable(url) -> bool:
     if parts.scheme not in ("http", "https"):
         return False
     host = parts.netloc.rsplit("@", 1)[-1].split(":")[0].lower()
+    if host == fetch_rides.PARTIFUL_IMGIX_HOST:
+        return parts.path.lstrip("/").startswith(fetch_rides.PARTIFUL_UPLOAD_PREFIX)
     if host in MIRROR_HOSTS or host.endswith(".appspot.com"):
         return True
     # The other spelling of the same bucket: storage.googleapis.com/<bucket>/…

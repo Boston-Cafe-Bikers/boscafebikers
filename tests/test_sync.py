@@ -666,6 +666,13 @@ GIPHY_IMAGE = "https://media2.giphy.com/media/ZcYmkPx47LLh3jIFhi/giphy.gif?cid=c
         (FIREBASE_IMAGE, True),
         # The same upload, spelled the way Partiful actually serves it.
         (IMGIX_IMAGE, True),
+        # …but the CDN is Partiful's general image host, not an uploads-only
+        # bucket, so on that host only the uploads path counts. Anything else
+        # there is artwork we have no business copying, whether or not
+        # Partiful serves any from it today.
+        ("https://partiful.imgix.net/posters/File.png", False),
+        ("https://partiful.imgix.net/", False),
+        ("https://partiful.imgix.net/external/useful/x/y", False),
         ("https://getpartiful.appspot.com/o/x.jpg", True),
         ("https://storage.googleapis.com/getpartiful.appspot.com/x.jpg", True),
         (STOCK_IMAGE, False),
@@ -862,7 +869,7 @@ def test_a_stock_poster_is_left_hotlinked(data_dir):
     def stock_page(url):
         return EVENT_PAGE.replace(
             "https://firebasestorage.googleapis.com/v0/b/getpartiful.appspot.com"
-            "/o/rides%2Fcharles-loop.jpg?alt=media",
+            "/o/external%2Fuser%2FHs47uq5mucZyXLBJZCda%2Fcharles-loop.jpg?alt=media",
             STOCK_IMAGE,
         )
 

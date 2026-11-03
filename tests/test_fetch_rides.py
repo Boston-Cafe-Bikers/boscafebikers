@@ -460,13 +460,16 @@ def test_image_merged_from_sidecar(feed_bytes):
 
 # --- Event-page image enrichment -------------------------------------------
 
-# What the event page *records* …
+# What the event page *records* … under external/user/<owner>/, which is where
+# Partiful files an upload and the only prefix sync.mirrorable will copy from.
 CHARLES_IMAGE = (
     "https://firebasestorage.googleapis.com/v0/b/getpartiful.appspot.com/o/"
-    "rides%2Fcharles-loop.jpg?alt=media"
+    "external%2Fuser%2FHs47uq5mucZyXLBJZCda%2Fcharles-loop.jpg?alt=media"
 )
 # … and what it actually *loads*, which is what the scrape now stores.
-CHARLES_CDN = "https://partiful.imgix.net/rides/charles-loop.jpg"
+CHARLES_CDN = (
+    "https://partiful.imgix.net/external/user/Hs47uq5mucZyXLBJZCda/charles-loop.jpg"
+)
 
 
 def test_extract_event_image_from_fixture_page():

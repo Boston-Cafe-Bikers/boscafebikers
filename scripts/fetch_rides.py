@@ -107,6 +107,13 @@ FIREBASE_STORAGE_HOST = "firebasestorage.googleapis.com"
 # Only this bucket sits behind that CDN. Another app's Firebase URL has no
 # imgix source to rewrite to, so it is left exactly as it was found.
 PARTIFUL_STORAGE_BUCKET = "getpartiful.appspot.com"
+# Where Partiful files what a user uploaded, in both spellings:
+# …/o/external%2Fuser%2F<uid>%2F<object> on Firebase, and
+# …imgix.net/external/user/<uid>/<object> on the CDN.
+# All 32 of this group's covers sit under it. It is what tells an upload apart
+# from Partiful's own stock artwork once both are behind the same CDN host —
+# see sync.mirrorable, which may only copy the first kind.
+PARTIFUL_UPLOAD_PREFIX = "external/user/"
 # /v0/b/<bucket>/o/<url-encoded object path>
 FIREBASE_OBJECT_RE = re.compile(r"^/v0/b/(?P<bucket>[^/]+)/o/(?P<object>.+)$")
 
