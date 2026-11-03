@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-11-02T19:26:32.946733-05:00",
+  "updated_at": "2026-11-03T15:08:48.530359-05:00",
   "count": 6,
   "events": [
     {
@@ -14,14 +14,14 @@
       "location_url": null,
       "description": "Starting near Coolidge Corner and swinging up and over to Union Square, we’ll get over to Michette to welcome their second location to Somerville! All Cafe Bikers will get some special treats and 10% off your order for riding with us! 🥐🥐🥐",
       "rsvp_url": "https://partiful.com/e/87gRkZeeUFnAuxCf19ko",
-      "image": "https://firebasestorage.googleapis.com/v0/b/getpartiful.appspot.com/o/external%2Fuser%2FHs47uq5mucZyXLBJZCda%2FxFCbK6pQgrW6MlunyGaBi?alt=media&token=9e21e6ec-7c78-44a4-b1f0-62fcc8241523",
+      "image": "https://partiful.imgix.net/external/user/Hs47uq5mucZyXLBJZCda/xFCbK6pQgrW6MlunyGaBi",
       "routes": [],
       "hosted_by_group": true,
       "grace_until": "2026-11-07T11:00:00-05:00",
       "place_name": "Michette on Webster",
       "address": "305 Webster Ave, Cambridge, MA",
       "year": "2026",
-      "poster": null
+      "poster": "posters/87gRkZeeUFnAuxCf19ko.jpg"
     },
     {
       "uid": "1YzKpbUsKjvTWL0LhMtx",
@@ -35,7 +35,7 @@
       "location_url": null,
       "description": "Joined with Cambridge Bike Safety on another thank-you ride, we’ll start in Teele Square at Lou Ann David Park and ride to Beacon St. via the new Elm Street bike lanes! Ending at Cafe Rustica.",
       "rsvp_url": "https://partiful.com/e/1YzKpbUsKjvTWL0LhMtx",
-      "image": "https://firebasestorage.googleapis.com/v0/b/getpartiful.appspot.com/o/external%2Fuser%2FHs47uq5mucZyXLBJZCda%2FRxOjXRKsocrCKv8l2eyji?alt=media&token=6bd61b53-4e70-47a7-b8a0-985635fc23b1",
+      "image": "https://partiful.imgix.net/external/user/Hs47uq5mucZyXLBJZCda/RxOjXRKsocrCKv8l2eyji",
       "routes": [],
       "hosted_by_group": true,
       "grace_until": "2026-11-14T11:15:00-05:00",
@@ -76,7 +76,7 @@
       "location_url": null,
       "description": "ButterNOT miss this ride to Butternut Bake House in Arlington! The sun is setting earlier but there's still plenty of time for biking to cafes!",
       "rsvp_url": "https://partiful.com/e/S8mvZKn72jgFCGbGtvol",
-      "image": "https://firebasestorage.googleapis.com/v0/b/getpartiful.appspot.com/o/external%2Fuser%2FHs47uq5mucZyXLBJZCda%2Fraxl7W_2DmBNrrBoeucvM?alt=media&token=eb01fc9f-e788-4830-a7ea-6ffaa5e1ebb1",
+      "image": "https://partiful.imgix.net/external/user/Hs47uq5mucZyXLBJZCda/raxl7W_2DmBNrrBoeucvM",
       "routes": [],
       "hosted_by_group": true,
       "grace_until": "2026-11-21T11:00:00-05:00",
@@ -97,7 +97,7 @@
       "location_url": null,
       "description": "Get your gratitude attitude going and be thankful for bikes, new friends, and coffee on this pre-Thanksgiving ride to Gracenote's High Street location!",
       "rsvp_url": "https://partiful.com/e/dewW2oqtzVSTzNxUkOV4",
-      "image": "https://firebasestorage.googleapis.com/v0/b/getpartiful.appspot.com/o/external%2Fuser%2FHs47uq5mucZyXLBJZCda%2FqyZvPhzZxc-0vd9K-xtcL?alt=media&token=3329d6e8-4f03-4d62-a1bb-a16def0feb9c",
+      "image": "https://partiful.imgix.net/external/user/Hs47uq5mucZyXLBJZCda/qyZvPhzZxc-0vd9K-xtcL",
       "routes": [],
       "hosted_by_group": true,
       "grace_until": "2026-11-22T11:00:00-05:00",
@@ -118,7 +118,7 @@
       "location_url": null,
       "description": "Ciao bella!! We're going to Cafe Amalfi! You'll think you've been transported to the coast of Italy as you cruise along Boston's waterfront.",
       "rsvp_url": "https://partiful.com/e/glsMhcGCWNton1GhrKrb",
-      "image": "https://firebasestorage.googleapis.com/v0/b/getpartiful.appspot.com/o/external%2Fuser%2FHs47uq5mucZyXLBJZCda%2FInI7VBnHPWot3xXbpZOEY?alt=media&token=e1e761e9-27cb-4c53-aa8f-679765051853",
+      "image": "https://partiful.imgix.net/external/user/Hs47uq5mucZyXLBJZCda/InI7VBnHPWot3xXbpZOEY",
       "routes": [],
       "hosted_by_group": true,
       "grace_until": "2026-11-29T12:00:00-05:00",
