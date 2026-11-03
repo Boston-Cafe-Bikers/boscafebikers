@@ -117,6 +117,16 @@ for the `getpartiful.appspot.com` bucket are touched, so Giphy GIFs, Partiful's
 stock art, another app's bucket and hand-written `ride_images.json` entries all
 pass through unchanged. `partiful.imgix.net` is in every page's `img-src`.
 
+A ride whose photo came back 4xx keeps `"poster": null` — "asked, answered",
+so the mirror never asks again. `events.json` is rebuilt from the feed every
+run so no null of its own survives there, but the archive is *merged*
+(`archive_events.merge_ride`) and remembers forever. That is right when the
+answer was about the photo and wrong when the question changed — as it did
+here, since the mirror now asks imgix rather than Firebase. `--retry-posters`
+clears those nulls for one run and re-queues the rides; the sync workflow
+exposes it as a `workflow_dispatch` input of the same name. It only clears
+nulls: a ride that already has a copy keeps it.
+
 **Only the group's own events.** The calendar export is the organizer's
 *whole* Partiful calendar, so it carries events they were merely invited to
 as well. The sync keeps an event only when its Partiful event page lists an

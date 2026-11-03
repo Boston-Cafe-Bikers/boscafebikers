@@ -784,6 +784,73 @@ def test_a_stored_firebase_url_is_still_downloaded_through_the_cdn(data_dir):
     assert stored_rides(data_dir)[archived["uid"]]["image"] == FIREBASE_IMAGE
 
 
+def _archived_with_a_stale_null(data_dir: Path) -> dict:
+    """An archived ride a previous run gave up on, as the data branch holds it."""
+    ride = dropped_ride()
+    ride["image"] = FIREBASE_IMAGE
+    ride["poster"] = None
+    write_payload(data_dir / "events-past.json", [ride])
+    return ride
+
+
+def test_a_given_up_on_photo_is_not_asked_about_again(data_dir):
+    """The default. `poster: null` is a verdict and it sticks.
+
+    The archive is merged, not rebuilt (archive_events.merge_ride), so unlike
+    an upcoming ride’s payload this null survives every later run — which is
+    the whole point: re-fetching a photo that is genuinely gone every six
+    hours forever is pointless and rude.
+    """
+    ride = _archived_with_a_stale_null(data_dir)
+    asked = []
+
+    def watching_fetch(url):
+        asked.append(url)
+        return fake_image(url)
+
+    sync.run(config(data_dir), **{**POSTER_SEAMS, "fetch_image": watching_fetch})
+
+    stored = stored_rides(data_dir)[ride["uid"]]
+    assert stored["poster"] is None
+    assert not any("7g3aIBW" in url or FIREBASE_IMAGE[-8:] in url for url in asked)
+
+
+def test_retry_posters_asks_again_and_mirrors_what_it_finds(data_dir):
+    """--retry-posters: for when the *question* changed, not the answer.
+
+    The 2026-11 CDN switch means the mirror asks a different URL than the one
+    that 4xx’d, so a null recorded before it is stale. One flagged run clears
+    them; the next cron is back to the default.
+    """
+    ride = _archived_with_a_stale_null(data_dir)
+
+    state = mirror_run(data_dir, retry_posters=True)
+
+    stored = stored_rides(data_dir)[ride["uid"]]
+    assert stored["poster"] == (
+        "posters/" + sync.render_route_maps.safe_name(ride["uid"]) + ".jpg"
+    )
+    assert posters_in(data_dir)[Path(stored["poster"]).name] == STUB_JPEG
+    assert any("re-queued 1 ride photo" in note for note in state.notes)
+
+
+def test_retry_posters_leaves_a_photo_it_already_has_alone(data_dir):
+    """It re-asks questions; it does not re-download answers."""
+    first = mirror_run(data_dir)
+    assert first.report.posters_mirrored == 3
+
+    second = mirror_run(data_dir, now=LATER, retry_posters=True)
+    assert second.report.posters_mirrored == 0
+    assert second.files.changed() == [], "a flagged quiet run still writes nothing"
+
+
+def test_retry_posters_writes_nothing_under_dry_run(data_dir):
+    _archived_with_a_stale_null(data_dir)
+    state = mirror_run(data_dir, retry_posters=True, dry_run=True)
+    assert not (data_dir / "posters").exists()
+    assert state.files.changed(), "it still computes what it would have done"
+
+
 def test_a_stock_poster_is_left_hotlinked(data_dir):
     """Partiful's own artwork and a Giphy GIF are never copied here."""
     asked = []
