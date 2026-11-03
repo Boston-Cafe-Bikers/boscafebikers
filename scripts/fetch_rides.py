@@ -820,7 +820,8 @@ def parse_events(
     ride's start — see `is_upcoming`. Either way the list is sorted by start.
 
     `images` is the optional UID → image-URL sidecar; each ride carries its
-    photo URL as `image` (None when absent). `excluded` is the set of UIDs to
+    photo URL as `image` (None when absent, and normalised by
+    `cdn_image_url`). `excluded` is the set of UIDs to
     leave out of either pass (see `load_excluded_events`); pass a set as
     `skipped` and the ones this pass actually left out are added to it, which
     is all the sync's run report needs to say how many the sidecar caught.
@@ -873,7 +874,14 @@ def parse_events(
                 "location_url": location_url,
                 "description": _clean_description(description),
                 "rsvp_url": extract_rsvp_url(description) or derive_partiful_url(uid),
-                "image": images.get(uid),
+                # Through the CDN rewrite like any other cover: a sidecar
+                # entry is a hand-written override of *which picture*, not a
+                # request for a particular URL spelling, and the one shape
+                # somebody is likely to paste from an old events-past.json is
+                # the tokened Firebase URL that can be revoked. Anything the
+                # rewrite doesn't recognise — which is almost everything a
+                # person would paste — is kept verbatim.
+                "image": cdn_image_url(images.get(uid)),
                 # None until enrichment looks at the event page; a list (even
                 # an empty one) means "we checked". archive_events relies on
                 # that difference so a re-export can't erase known routes.

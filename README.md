@@ -90,7 +90,11 @@ from every visitor's browser.
 **Ride photos.** The ICS feed doesn't carry images. To put a photo on a ride
 card, add an entry to `scripts/ride_images.json` mapping the ride's `uid`
 (shown in `events.json`) to an image URL, and commit it — the next sync
-bakes the `image` into `events.json` and the ride card displays it.
+bakes the `image` into `events.json` and the ride card displays it. The entry
+is a hand-written override of *which picture*, not of which URL spelling, so
+it goes through the same CDN rewrite as a scraped cover (below): paste a
+tokened `firebasestorage` URL and it is stored as its durable
+`partiful.imgix.net` twin. Every other URL is kept verbatim.
 
 The sync also keeps its own copy. A photo the organizer uploaded is downloaded,
 resized to 800px and saved as `posters/<uid>.jpg` on the `data` branch, a few

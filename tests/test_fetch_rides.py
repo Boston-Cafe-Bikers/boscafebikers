@@ -558,6 +558,25 @@ def test_cdn_image_url_requotes_an_awkward_filename():
     assert fetch_rides.cdn_image_url(url) == (
         "https://partiful.imgix.net/rides/caf%C3%A9%20ride.jpg"
     )
+def test_a_sidecar_firebase_url_is_normalised_to_the_cdn(feed_bytes):
+    """The sidecar overrides *which picture*, not which URL spelling.
+
+    The one shape somebody is plausibly pasting in is a tokened Firebase URL
+    copied out of an old events-past.json — exactly the spelling whose token
+    can be revoked. Hand-editing a file should not be how you reintroduce the
+    bug the CDN rewrite exists to fix.
+    """
+    images = {"evt-future-charles-loop@partiful.com": TOKENED}
+    charles, _ = fetch_rides.parse_events(feed_bytes, now=NOW, images=images)
+    assert charles["image"] == TOKENED_CDN
+
+
+def test_a_sidecar_url_the_rewrite_does_not_know_is_kept_verbatim(feed_bytes):
+    """Which is almost everything a person would actually paste."""
+    for pasted in (TOKENED_CDN, GIPHY_GIF, STOCK_POSTER, "https://example.com/a.png"):
+        images = {"evt-future-charles-loop@partiful.com": pasted}
+        charles, _ = fetch_rides.parse_events(feed_bytes, now=NOW, images=images)
+        assert charles["image"] == pasted
 
 
 def test_extract_event_image_blank_page_is_none():
