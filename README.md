@@ -90,16 +90,46 @@ from every visitor's browser.
 **Ride photos.** The ICS feed doesn't carry images. To put a photo on a ride
 card, add an entry to `scripts/ride_images.json` mapping the ride's `uid`
 (shown in `events.json`) to an image URL, and commit it — the next sync
-bakes the `image` into `events.json` and the ride card displays it.
+bakes the `image` into `events.json` and the ride card displays it. The entry
+is a hand-written override of *which picture*, not of which URL spelling, so
+it goes through the same CDN rewrite as a scraped cover (below): paste a
+tokened `firebasestorage` URL and it is stored as its durable
+`partiful.imgix.net` twin. Every other URL is kept verbatim.
 
-The sync also keeps its own copy. A photo the organizer uploaded (Partiful
-stores those in Firebase Storage) is downloaded, resized to 800px and saved as
-`posters/<uid>.jpg` on the `data` branch, a few per run; the card prefers that
-copy, so the page serves its own bytes instead of sending every visitor to
-Google for a 3 MB original. Artwork the organizer only *picked* — Partiful's
+The sync also keeps its own copy. A photo the organizer uploaded is downloaded,
+resized to 800px and saved as `posters/<uid>.jpg` on the `data` branch, a few
+per run; the card prefers that copy, so the page serves its own bytes instead
+of sending every visitor to someone else's CDN for a 3 MB original. Artwork the organizer only *picked* — Partiful's
 stock posters, a Giphy GIF — is left hotlinked, and `image` stays on every ride
 as the fallback. Resizing needs ImageMagick, which the sync workflow installs (ubuntu-latest does not ship it); without it
 the step is skipped and nothing else changes.
+
+**Covers come from imgix, not Firebase.** A Partiful event page embeds the
+cover twice: a `firebasestorage.googleapis.com/…?alt=media&token=…` URL inside
+`__NEXT_DATA__` (Partiful's internal record), and a `partiful.imgix.net/<object
+path>` URL in the `<img srcSet>` and `og:image` that the page actually loads.
+The Firebase token is revocable, and when it is revoked the object answers
+**403 Permission denied** while staying readable through imgix — so the tokened
+URL is the one that rots. On 2026-11-03 two of this group's covers were in
+exactly that state (403 on Firebase, 200 on imgix) and all 32 Firebase-backed
+covers in `events.json` + `events-past.json` worked through imgix. So
+`fetch_rides.cdn_image_url` rewrites the scraped URL to the CDN twin, and
+`sync.step_posters` downloads the CDN twin even for the archived rides that
+still *store* a Firebase URL (nothing rewrites a stored `image` in place). The
+rewrite is narrow and idempotent: only `firebasestorage.googleapis.com` URLs
+for the `getpartiful.appspot.com` bucket are touched, so Giphy GIFs, Partiful's
+stock art, another app's bucket and hand-written `ride_images.json` entries all
+pass through unchanged. `partiful.imgix.net` is in every page's `img-src`.
+
+A ride whose photo came back 4xx keeps `"poster": null` — "asked, answered",
+so the mirror never asks again. `events.json` is rebuilt from the feed every
+run so no null of its own survives there, but the archive is *merged*
+(`archive_events.merge_ride`) and remembers forever. That is right when the
+answer was about the photo and wrong when the question changed — as it did
+here, since the mirror now asks imgix rather than Firebase. `--retry-posters`
+clears those nulls for one run and re-queues the rides; the sync workflow
+exposes it as a `workflow_dispatch` input of the same name. It only clears
+nulls: a ride that already has a copy keeps it.
 
 **Only the group's own events.** The calendar export is the organizer's
 *whole* Partiful calendar, so it carries events they were merely invited to
@@ -120,6 +150,17 @@ with a short note and commit. The next sync drops it everywhere, including
 from `events-past.json` if it was already archived. Deleting it from that file
 by hand doesn't stick: the sync would archive it again from the feed.
 
+**Rides whose Partiful location is the meeting point, not the café.** Some past
+rides archived with the start location because Partiful only stored a meeting
+point (or a maps link) and the destination lived in the description. Editing
+`events-past.json` by hand doesn't stick: the feed re-exports that past ride
+with its non-null location every run, and the archive lets a source value
+overwrite the stored one. Add the `uid` to `scripts/ride_destinations.json`
+mapping it to the destination (`"Café, 1 Main St, City, MA 02139"` — the same
+shape as any `location`) and commit. The sync re-applies the sidecar to the
+merged archive on every run, so the fix survives, and `place_name`/`address`
+follow it. A missing or empty sidecar changes nothing.
+
 **Instagram gallery.** `scripts/sync_instagram.py` uses an Instagram User
 access token only inside the sync runner to fetch the latest nine posts from
 `@bostoncafebikers`. Images, carousel covers and Reel/video thumbnails are
@@ -132,7 +173,7 @@ stay visible on a fresh checkout or through any API/token failure. The
 Instagram step is fail-soft and preserves the last successful cache rather
 than blocking ride updates.
 
-The sync also re-exports every upcoming ride as a public calendar feed at `rides.ics` — subscribe to <https://cafebikers.org/rides.ics> (or the `webcal://` form in Apple Calendar) and new rides appear on their own.
+The sync also re-exports every ride — upcoming and archived — as a public calendar feed at `rides.ics` — subscribe to <https://cafebikers.org/rides.ics> (or the `webcal://` form in Apple Calendar) and new rides appear on their own. Past rides stay in the feed after they leave `events.json`, so a subscriber's calendar keeps yesterday's ride instead of losing it.
 
 ### The `data` branch
 
@@ -267,7 +308,7 @@ The remaining protections must be added by the CDN/proxy in front of Pages
 (Cloudflare is the natural place for this domain):
 
 ```text
-Content-Security-Policy: default-src 'self'; base-uri 'none'; object-src 'none'; script-src 'self' https://cdn.jsdelivr.net; script-src-attr 'none'; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data: blob: https://tiles.openfreemap.org https://assets.getpartiful.com https://*.giphy.com https://firebasestorage.googleapis.com https://storage.googleapis.com https://*.appspot.com; connect-src 'self' https://tiles.openfreemap.org; font-src 'self' data:; worker-src 'self' blob:; frame-src 'none'; frame-ancestors 'none'; form-action 'self' mailto:; upgrade-insecure-requests
+Content-Security-Policy: default-src 'self'; base-uri 'none'; object-src 'none'; script-src 'self' https://cdn.jsdelivr.net; script-src-attr 'none'; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data: blob: https://tiles.openfreemap.org https://assets.getpartiful.com https://*.giphy.com https://partiful.imgix.net https://firebasestorage.googleapis.com https://storage.googleapis.com https://*.appspot.com; connect-src 'self' https://tiles.openfreemap.org; font-src 'self' data:; worker-src 'self' blob:; frame-src 'none'; frame-ancestors 'none'; form-action 'self' mailto:; upgrade-insecure-requests
 Strict-Transport-Security: max-age=31536000; includeSubDomains
 X-Content-Type-Options: nosniff
 X-Frame-Options: DENY

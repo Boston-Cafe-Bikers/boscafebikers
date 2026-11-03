@@ -256,6 +256,29 @@ def test_the_same_payload_always_builds_the_same_bytes(payload):
     assert export_ics.build_calendar(payload) == export_ics.build_calendar(payload)
 
 
+# --- past rides stay on the calendar --------------------------------------
+
+@pytest.fixture(scope="module")
+def past_rides() -> list[dict]:
+    return fetch_rides.parse_events(FIXTURE.read_bytes(), now=NOW, past=True)
+
+
+def test_the_archive_is_exported_alongside_the_upcoming_rides(payload, past_rides):
+    """A ride must not vanish from a subscriber's calendar when it happens."""
+    calendar = export_ics.build_calendar(payload, past_rides)
+    uids = [value(block, "UID") for block in vevents(calendar)]
+    assert uids == [past_rides[0]["uid"]] + [ride["uid"] for ride in payload["events"]]
+
+
+def test_a_ride_in_both_lists_is_one_event_and_the_upcoming_copy_wins(payload, rides):
+    stale = dict(rides[0], title="Stale archive copy")
+    calendar = export_ics.build_calendar(payload, [stale])
+    blocks = vevents(calendar)
+    assert len(blocks) == len(rides)
+    block = next(b for b in blocks if value(b, "UID") == rides[0]["uid"])
+    assert value(block, "SUMMARY") == "Charles River Loop → Tatte"
+
+
 # --- empty list -----------------------------------------------------------
 
 def test_no_rides_still_yields_a_valid_empty_calendar():
@@ -370,6 +393,19 @@ def test_cli_writes_and_then_reports_unchanged(tmp_path, payload, capsys):
     assert "Wrote" in capsys.readouterr().out
     assert export_ics.main([str(source), "--out", str(out)]) == 0
     assert "Unchanged" in capsys.readouterr().out
+
+
+def test_cli_past_option_keeps_archived_rides(tmp_path, payload, past_rides, capsys):
+    source = write_payload(tmp_path, payload)
+    past_source = write_payload(tmp_path, {"updated_at": UPDATED_AT, "events": past_rides})
+    out = tmp_path / "rides.ics"
+    assert export_ics.main(
+        [str(source), "--past", str(past_source), "--out", str(out)]
+    ) == 0
+    assert "Wrote" in capsys.readouterr().out
+    assert past_rides[0]["uid"] in {
+        value(block, "UID") for block in vevents(out.read_bytes().decode("utf-8"))
+    }
 
 
 def test_cli_fails_on_a_missing_source(tmp_path, capsys):

@@ -383,3 +383,95 @@ def test_main_exits_nonzero_on_a_broken_exclusion_list(tmp_path, capsys):
 def test_excluded_path_matches_fetch_rides():
     """Both scripts must read the same sidecar (duplicated, not imported)."""
     assert archive_events.DEFAULT_EXCLUDED == fetch_rides.EXCLUDED_EVENTS_PATH
+
+
+# --- destination overrides (scripts/ride_destinations.json) ---
+
+
+def test_load_destinations_missing_file_is_empty(tmp_path):
+    assert archive_events.load_location_overrides(tmp_path / "nope.json") == {}
+
+
+def test_load_destinations_reads_the_values(tmp_path):
+    path = tmp_path / "ride_destinations.json"
+    path.write_text('{"abc": "Café, 2 Main St, Cambridge, MA"}', encoding="utf-8")
+    assert archive_events.load_location_overrides(path) == {
+        "abc": "Café, 2 Main St, Cambridge, MA"
+    }
+
+
+@pytest.mark.parametrize("text", ["{oops", '["abc"]', '{"abc": ""}', '{"abc": 7}'])
+def test_load_destinations_rejects_a_broken_file(tmp_path, text):
+    path = tmp_path / "ride_destinations.json"
+    path.write_text(text, encoding="utf-8")
+    with pytest.raises(archive_events.ArchiveError):
+        archive_events.load_location_overrides(path)
+
+
+def test_an_override_beats_the_feeds_non_null_location(tmp_path):
+    """The whole point: a start location from the feed cannot undo a fix."""
+    archived = [ride("a", "2026-05-02T11:00:00-04:00",
+                     location="City Hall Plaza, 1 City Hall Ave, Boston, MA")]
+    # The feed re-export carries the same start location, which merge_ride
+    # would normally let win.
+    fresh = [[ride("a", "2026-05-02T11:00:00-04:00",
+                   location="City Hall Plaza, 1 City Hall Ave, Boston, MA")]]
+    overrides = {"a": "Lovestruck Books, 44 Brattle St, Cambridge, MA 02138"}
+    merged = ride_fields.derive_all(
+        ride_fields.apply_location_overrides(
+            archive_events.merge_archive(archived, fresh, NOW), overrides
+        )
+    )
+    assert merged[0]["location"] == "Lovestruck Books, 44 Brattle St, Cambridge, MA 02138"
+    assert merged[0]["place_name"] == "Lovestruck Books"
+    assert merged[0]["address"] == "44 Brattle St, Cambridge, MA 02138"
+
+
+def test_run_applies_the_destination_sidecar(tmp_path):
+    archive = write_payload(
+        tmp_path / "past.json",
+        [ride("a", "2026-05-02T11:00:00-04:00",
+              location="Park Street Station, Boston, MA")],
+    )
+    source = write_payload(
+        tmp_path / "source.json",
+        [ride("a", "2026-05-02T11:00:00-04:00",
+              location="Park Street Station, Boston, MA")],
+    )
+    destinations = tmp_path / "ride_destinations.json"
+    destinations.write_text(
+        '{"a": "Yafa Bakery & Café, 594 Somerville Ave, Somerville, MA 02143"}',
+        encoding="utf-8",
+    )
+    assert archive_events.run(
+        archive, [source], now=NOW, destinations_path=destinations
+    ) is True
+    written = json.loads(archive.read_text(encoding="utf-8"))["events"][0]
+    assert written["place_name"] == "Yafa Bakery & Café"
+    assert written["address"] == "594 Somerville Ave, Somerville, MA 02143"
+    # A re-run is a no-op, even though the source still carries the start.
+    assert archive_events.run(
+        archive, [source], now=NOW, destinations_path=destinations
+    ) is False
+
+
+def test_main_takes_a_ride_destinations_flag(tmp_path):
+    archive = tmp_path / "events-past.json"
+    source = write_payload(
+        tmp_path / "source.json",
+        [ride("a", "2026-05-02T11:00:00-04:00", location="Start Plaza, Boston, MA")],
+    )
+    destinations = tmp_path / "ride_destinations.json"
+    destinations.write_text('{"a": "Café, 2 Main St, Cambridge, MA"}', encoding="utf-8")
+    code = archive_events.main([
+        "--archive", str(archive),
+        "--ride-destinations", str(destinations),
+        str(source),
+    ])
+    assert code == 0
+    assert json.loads(archive.read_text(encoding="utf-8"))["events"][0]["place_name"] == "Café"
+
+
+def test_destinations_path_lives_with_the_other_sidecars():
+    assert archive_events.DEFAULT_DESTINATIONS == ride_fields.RIDE_DESTINATIONS_PATH
+    assert archive_events.DEFAULT_DESTINATIONS.name == "ride_destinations.json"

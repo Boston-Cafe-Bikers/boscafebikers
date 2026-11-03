@@ -10,6 +10,10 @@ on:
         description: "Run the pipeline but write nothing (the summary shows what it would have done)"
         type: boolean
         default: false
+      retry-posters:
+        description: "Ask again about ride photos a previous run gave up on (clears a stored `poster: null`)"
+        type: boolean
+        default: false
 
 # One sync at a time: two runs must never race a push to the data branch.
 concurrency:
@@ -28,6 +32,10 @@ jobs:
       changed: ${{ steps.commit.outputs.changed }}
     env:
       DRY_RUN: ${{ github.event.inputs.dry-run }}
+      # A one-shot repair, never the cron's business: a stored `poster: null`
+      # is "we asked and the answer was no", and only a change to *where* we
+      # ask makes that verdict stale. See step_posters.
+      RETRY_POSTERS: ${{ github.event.inputs.retry-posters }}
     steps:
       # Bare checkout — this workflow's own ref. The cron runs master's
       # scripts/; `gh workflow run sync.yml --ref dev` runs dev's, which is how
@@ -77,6 +85,9 @@ jobs:
           args=(--data-dir _data)
           if [ "${DRY_RUN:-false}" = "true" ]; then
             args+=(--dry-run)
+          fi
+          if [ "${RETRY_POSTERS:-false}" = "true" ]; then
+            args+=(--retry-posters)
           fi
           log="$RUNNER_TEMP/sync.log"
           status=0

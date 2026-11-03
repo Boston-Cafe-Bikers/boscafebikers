@@ -31,6 +31,7 @@ from helpers import (
 import fetch_rides
 import geocode_cafes
 import render_route_maps
+import ride_fields
 import route_map
 import sync
 
@@ -240,6 +241,37 @@ def test_the_calendar_is_byte_stable_though_updated_at_moves(data_dir):
     assert b"DTSTAMP:" in calendar
 
 
+def test_the_subscribed_calendar_keeps_rides_after_they_happen(seeded):
+    """A ride that moves from upcoming to the archive must not vanish for
+    subscribers: their calendar would silently lose the event the morning
+    after it happened."""
+    def calendar_uids() -> set:
+        calendar = (seeded / "rides.ics").read_text(encoding="utf-8")
+        return {
+            line.split(":", 1)[1]
+            for line in calendar.splitlines()
+            if line.startswith("UID:")
+        }
+
+    do_run(seeded)
+    assert calendar_uids() == {
+        "evt-future-charles-loop@partiful.com",
+        "evt-future-minuteman@partiful.com",
+        "evt-past-jamaica-pond@partiful.com",
+    }
+
+    # Far enough ahead that both fixture rides have happened and dropped out
+    # of the upcoming feed; the archive is now their only copy.
+    after = datetime(2031, 1, 1, 12, 0, tzinfo=EASTERN)
+    do_run(seeded, now=after)
+
+    assert calendar_uids() == {
+        "evt-past-jamaica-pond@partiful.com",
+        "evt-future-charles-loop@partiful.com",
+        "evt-future-minuteman@partiful.com",
+    }
+
+
 # --- one test per ordering rule -------------------------------------------
 
 
@@ -403,6 +435,54 @@ def test_an_excluded_uid_is_purged_from_an_archive_that_already_holds_it(data_di
     assert payload_of(data_dir / "events-past.json")["events"] == []
 
 
+# --- destination overrides -------------------------------------------------
+
+
+def test_a_destination_override_beats_the_feeds_past_location(data_dir, tmp_path):
+    """The feed still exports the meeting point for this UID on every run;
+    merge_ride would let that non-null value overwrite a hand fix. The sidecar
+    is re-applied after the merge, so the destination survives every sync."""
+    destinations = tmp_path / "ride_destinations.json"
+    destinations.write_text(
+        json.dumps(
+            {
+                "evt-past-jamaica-pond@partiful.com":
+                    "Momma's, 525 Western Ave, Brighton, MA 02135",
+            }
+        ),
+        encoding="utf-8",
+    )
+    do_run(data_dir, ride_destinations=destinations)
+
+    archived = payload_of(data_dir / "events-past.json")["events"][0]
+    assert archived["location"] == "Momma's, 525 Western Ave, Brighton, MA 02135"
+    assert archived["place_name"] == "Momma's"
+    assert archived["address"] == "525 Western Ave, Brighton, MA 02135"
+
+    # And it is stable: the next sync reads the same feed location and must
+    # land on the same result rather than drifting back.
+    before = snapshot(data_dir)
+    second = do_run(data_dir, now=LATER, ride_destinations=destinations)
+    assert second.files.changed() == []
+    assert snapshot(data_dir) == before
+
+
+def test_an_upcoming_ride_honours_its_override_too(data_dir, tmp_path):
+    destinations = tmp_path / "ride_destinations.json"
+    destinations.write_text(
+        json.dumps(
+            {
+                "evt-future-charles-loop@partiful.com":
+                    "Sip Café, 0 Post Office Square, Boston, MA 02110",
+            }
+        ),
+        encoding="utf-8",
+    )
+    do_run(data_dir, ride_destinations=destinations)
+    upcoming = {r["uid"]: r for r in payload_of(data_dir / "events.json")["events"]}
+    assert upcoming["evt-future-charles-loop@partiful.com"]["place_name"] == "Sip Café"
+
+
 # --- offline is really offline --------------------------------------------
 
 
@@ -503,6 +583,7 @@ def test_every_published_path_derives_from_the_data_dir(tmp_path):
     # The sidecars are code, not data: they stay in scripts/.
     assert cfg.ride_images == fetch_rides.RIDE_IMAGES_PATH
     assert cfg.excluded_events == fetch_rides.EXCLUDED_EVENTS_PATH
+    assert cfg.ride_destinations == ride_fields.RIDE_DESTINATIONS_PATH
 
 
 def test_the_step_list_is_the_documented_pipeline():
@@ -572,6 +653,9 @@ FIREBASE_IMAGE = (
     "https://firebasestorage.googleapis.com/v0/b/getpartiful.appspot.com/"
     "o/external%2Fuser%2FHs47uq5mucZyXLBJZCda%2Fa_n4RCOs?alt=media&token=431384ca"
 )
+IMGIX_IMAGE = (
+    "https://partiful.imgix.net/external/user/Hs47uq5mucZyXLBJZCda/a_n4RCOs"
+)
 STOCK_IMAGE = "https://assets.getpartiful.com/posters/File.png"
 GIPHY_IMAGE = "https://media2.giphy.com/media/ZcYmkPx47LLh3jIFhi/giphy.gif?cid=c00e53c6"
 
@@ -580,6 +664,15 @@ GIPHY_IMAGE = "https://media2.giphy.com/media/ZcYmkPx47LLh3jIFhi/giphy.gif?cid=c
     "url, expected",
     [
         (FIREBASE_IMAGE, True),
+        # The same upload, spelled the way Partiful actually serves it.
+        (IMGIX_IMAGE, True),
+        # …but the CDN is Partiful's general image host, not an uploads-only
+        # bucket, so on that host only the uploads path counts. Anything else
+        # there is artwork we have no business copying, whether or not
+        # Partiful serves any from it today.
+        ("https://partiful.imgix.net/posters/File.png", False),
+        ("https://partiful.imgix.net/", False),
+        ("https://partiful.imgix.net/external/useful/x/y", False),
         ("https://getpartiful.appspot.com/o/x.jpg", True),
         ("https://storage.googleapis.com/getpartiful.appspot.com/x.jpg", True),
         (STOCK_IMAGE, False),
@@ -644,8 +737,10 @@ def test_the_step_mirrors_every_ride_photo_and_points_the_cards_at_it(data_dir):
     assert set(files.values()) == {STUB_JPEG}
     for uid, ride in stored_rides(data_dir).items():
         assert ride["poster"] == "posters/" + sync.render_route_maps.safe_name(uid) + ".jpg"
-        # The original stays exactly where it was: it is the card's fallback.
-        assert ride["image"].startswith("https://firebasestorage.googleapis.com/")
+        # The hotlink stays exactly where it was: it is the card's fallback.
+        # It is the CDN spelling now — fetch_rides.cdn_image_url rewrote it
+        # on the way out of the event page.
+        assert ride["image"].startswith(sync.fetch_rides.PARTIFUL_IMGIX_URL)
 
 
 def test_the_poster_path_is_relative_and_lands_under_the_data_dir(data_dir):
@@ -668,6 +763,101 @@ def test_without_a_fetch_image_seam_an_offline_run_mirrors_nothing(data_dir):
     assert state.report.posters_mirrorable == 3
 
 
+def test_a_stored_firebase_url_is_still_downloaded_through_the_cdn(data_dir):
+    """An archived ride keeps the tokened URL; the mirror must not use it.
+
+    That token is revocable. When it is revoked the object answers 403 while
+    staying perfectly readable through imgix — which is how one upcoming and
+    one archived cover broke on this site (2026-11-03). Nothing rewrites a
+    stored `image` in place, so the mirror has to do the translation itself.
+    """
+    archived = dropped_ride()
+    archived["image"] = FIREBASE_IMAGE
+    write_payload(data_dir / "events-past.json", [archived])
+
+    asked = []
+
+    def watching_fetch(url):
+        asked.append(url)
+        return fake_image(url)
+
+    sync.run(config(data_dir), **{**POSTER_SEAMS, "fetch_image": watching_fetch})
+
+    assert asked, "the archived ride's photo is mirrorable and should be fetched"
+    assert all(url.startswith(sync.fetch_rides.PARTIFUL_IMGIX_URL) for url in asked)
+    assert not any("token=" in url for url in asked)
+    # The ride still advertises what it always did — the mirror does not edit
+    # `image`, it only decides where to download from.
+    assert stored_rides(data_dir)[archived["uid"]]["image"] == FIREBASE_IMAGE
+
+
+def _archived_with_a_stale_null(data_dir: Path) -> dict:
+    """An archived ride a previous run gave up on, as the data branch holds it."""
+    ride = dropped_ride()
+    ride["image"] = FIREBASE_IMAGE
+    ride["poster"] = None
+    write_payload(data_dir / "events-past.json", [ride])
+    return ride
+
+
+def test_a_given_up_on_photo_is_not_asked_about_again(data_dir):
+    """The default. `poster: null` is a verdict and it sticks.
+
+    The archive is merged, not rebuilt (archive_events.merge_ride), so unlike
+    an upcoming ride’s payload this null survives every later run — which is
+    the whole point: re-fetching a photo that is genuinely gone every six
+    hours forever is pointless and rude.
+    """
+    ride = _archived_with_a_stale_null(data_dir)
+    asked = []
+
+    def watching_fetch(url):
+        asked.append(url)
+        return fake_image(url)
+
+    sync.run(config(data_dir), **{**POSTER_SEAMS, "fetch_image": watching_fetch})
+
+    stored = stored_rides(data_dir)[ride["uid"]]
+    assert stored["poster"] is None
+    assert not any("7g3aIBW" in url or FIREBASE_IMAGE[-8:] in url for url in asked)
+
+
+def test_retry_posters_asks_again_and_mirrors_what_it_finds(data_dir):
+    """--retry-posters: for when the *question* changed, not the answer.
+
+    The 2026-11 CDN switch means the mirror asks a different URL than the one
+    that 4xx’d, so a null recorded before it is stale. One flagged run clears
+    them; the next cron is back to the default.
+    """
+    ride = _archived_with_a_stale_null(data_dir)
+
+    state = mirror_run(data_dir, retry_posters=True)
+
+    stored = stored_rides(data_dir)[ride["uid"]]
+    assert stored["poster"] == (
+        "posters/" + sync.render_route_maps.safe_name(ride["uid"]) + ".jpg"
+    )
+    assert posters_in(data_dir)[Path(stored["poster"]).name] == STUB_JPEG
+    assert any("re-queued 1 ride photo" in note for note in state.notes)
+
+
+def test_retry_posters_leaves_a_photo_it_already_has_alone(data_dir):
+    """It re-asks questions; it does not re-download answers."""
+    first = mirror_run(data_dir)
+    assert first.report.posters_mirrored == 3
+
+    second = mirror_run(data_dir, now=LATER, retry_posters=True)
+    assert second.report.posters_mirrored == 0
+    assert second.files.changed() == [], "a flagged quiet run still writes nothing"
+
+
+def test_retry_posters_writes_nothing_under_dry_run(data_dir):
+    _archived_with_a_stale_null(data_dir)
+    state = mirror_run(data_dir, retry_posters=True, dry_run=True)
+    assert not (data_dir / "posters").exists()
+    assert state.files.changed(), "it still computes what it would have done"
+
+
 def test_a_stock_poster_is_left_hotlinked(data_dir):
     """Partiful's own artwork and a Giphy GIF are never copied here."""
     asked = []
@@ -679,7 +869,7 @@ def test_a_stock_poster_is_left_hotlinked(data_dir):
     def stock_page(url):
         return EVENT_PAGE.replace(
             "https://firebasestorage.googleapis.com/v0/b/getpartiful.appspot.com"
-            "/o/rides%2Fcharles-loop.jpg?alt=media",
+            "/o/external%2Fuser%2FHs47uq5mucZyXLBJZCda%2Fcharles-loop.jpg?alt=media",
             STOCK_IMAGE,
         )
 
