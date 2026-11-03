@@ -71,6 +71,7 @@ EXPECTED_CSP = (
     "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
     "img-src 'self' data: blob: https://tiles.openfreemap.org "
     "https://assets.getpartiful.com https://*.giphy.com "
+    "https://partiful.imgix.net "
     "https://firebasestorage.googleapis.com https://storage.googleapis.com "
     "https://*.appspot.com; connect-src 'self' https://tiles.openfreemap.org; "
     "font-src 'self' data:; worker-src 'self' blob:; frame-src 'none'; "

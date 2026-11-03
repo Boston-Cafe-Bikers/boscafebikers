@@ -114,6 +114,7 @@ class Config:
     now: Optional[datetime] = None
     enrich_limit: int = DEFAULT_ENRICH_LIMIT
     poster_limit: int = DEFAULT_POSTER_LIMIT
+    retry_posters: bool = False
     url_prefix: str = DEFAULT_URL_PREFIX
     dry_run: bool = False
 
@@ -365,6 +366,8 @@ POSTER_USER_AGENT = "boscafebikers-sync/1.0"
 # ImageMagick 7 calls it `magick`, 6 called it `convert`; the Ubuntu runner has
 # one of them preinstalled. Neither is a dependency — see poster_resizer().
 IMAGEMAGICK_NAMES = ("magick", "convert")
+# Host alone is enough here: only uploads are in Firebase Storage. It is not
+# enough for the CDN — see mirrorable().
 MIRROR_HOSTS = ("firebasestorage.googleapis.com",)
 
 
@@ -379,9 +382,27 @@ def mirrorable(url) -> bool:
     that can sit in the cover slot is somebody else's artwork the host picked
     off a shelf — Partiful's own stock posters (assets.getpartiful.com) or a
     Giphy GIF. Copying those into a public repo is not ours to decide, so only
-    the Firebase ones are mirrored and the rest stay hotlinked exactly as they
-    are today. Today's data: 20 of 34 ride photos are mirrorable, 7 are
+    the host's own uploads are mirrored and the rest stay hotlinked exactly as
+    they are today. Today's data: 20 of 34 ride photos are mirrorable, 7 are
     Partiful stock and 7 are Giphy.
+
+    Those uploads have two spellings — the Firebase Storage URL Partiful
+    records, and the ``partiful.imgix.net`` URL Partiful actually serves (see
+    ``fetch_rides.cdn_image_url``). Both name the same object, so both are
+    mirrorable; ``step_posters`` downloads the CDN one either way.
+
+    But the two spellings do not carry the same guarantee. Firebase Storage
+    holds uploads and nothing else, so its *host* is proof enough. The CDN is
+    Partiful's general-purpose image host, and serving their stock posters
+    from it one day would be an entirely ordinary thing for them to do — at
+    which point a host-only rule would quietly start copying other people's
+    artwork into a public repo, with nothing to notice. So for the CDN the
+    proof has to come from the path: ``external/user/`` is where Partiful
+    files what a user uploaded, and all 32 of this group's covers are under
+    it. (Checked 2026-11-03: the stock poster
+    ``assets.getpartiful.com/posters/File.png`` is 404 at the same path on
+    imgix, so today the distinction is theory — which is exactly when it is
+    cheap to encode.)
     """
     if not isinstance(url, str):
         return False
@@ -389,6 +410,8 @@ def mirrorable(url) -> bool:
     if parts.scheme not in ("http", "https"):
         return False
     host = parts.netloc.rsplit("@", 1)[-1].split(":")[0].lower()
+    if host == fetch_rides.PARTIFUL_IMGIX_HOST:
+        return parts.path.lstrip("/").startswith(fetch_rides.PARTIFUL_UPLOAD_PREFIX)
     if host in MIRROR_HOSTS or host.endswith(".appspot.com"):
         return True
     # The other spelling of the same bucket: storage.googleapis.com/<bucket>/…
@@ -737,6 +760,29 @@ def step_posters(run: Run) -> None:
         for ride in group
         if isinstance(ride, dict)
     ]
+    if config.retry_posters:
+        # ``poster: null`` means "asked, answered" — but an answer can go
+        # stale. The 2026-11 CDN switch means the mirror now asks a *different*
+        # URL than the one that 4xx'd, so every null recorded before it is a
+        # verdict on a question nobody asks any more. Clearing them re-queues
+        # those rides exactly once, on the run that asks for it; the default
+        # stays "don't ask again", because re-fetching a genuinely dead photo
+        # every six hours forever is both pointless and rude (see
+        # ``fetch_image``). An upcoming ride never needs this — its payload is
+        # rebuilt from the feed each run, so no null of its own survives — it
+        # is the merged archive that remembers (archive_events.merge_ride).
+        cleared = []
+        for ride in rides:
+            # Only a null. A ride that already has a copy keeps it; this
+            # re-asks questions, it does not re-download answers.
+            if "poster" in ride and ride["poster"] is None:
+                del ride["poster"]
+                cleared.append(str(ride.get("uid") or "?"))
+        if cleared:
+            run.note(
+                f"re-queued {len(cleared)} ride photo(s) previously given up on: "
+                + ", ".join(sorted(cleared))
+            )
     # First re-point every ride at a copy that already exists. The upcoming
     # payload comes back from the feed with no `poster` at all, every run, so
     # without this pass the promote would see a changed rides list forever —
@@ -759,8 +805,14 @@ def step_posters(run: Run) -> None:
         fetch = run.seams.fetch_image or fetch_image
         limit = config.poster_limit
         for ride, target in todo[:limit] if limit > 0 else []:
+            # Download the CDN twin whatever the ride has stored: an archived
+            # ride still carries the tokened Firebase URL, and that token can
+            # be revoked (403) while the object is still perfectly readable
+            # through imgix. The stored `image` is left alone — rewriting it
+            # here is the scrape's job, not the mirror's.
+            source = fetch_rides.cdn_image_url(ride.get("image"))
             try:
-                data = fetch(ride.get("image"))
+                data = fetch(source)
             except (PosterFetchError, requests.RequestException, ValueError, TypeError):
                 continue  # transient: no key written, retried next run
             if data is None:
@@ -1436,6 +1488,12 @@ def build_parser() -> argparse.ArgumentParser:
         f"(default: {DEFAULT_POSTER_LIMIT}, 0 for none)",
     )
     parser.add_argument(
+        "--retry-posters",
+        action="store_true",
+        help="ask again about ride photos a previous run gave up on "
+        "(clears a stored `poster: null`); for after the source URL changes",
+    )
+    parser.add_argument(
         "--url-prefix",
         default=DEFAULT_URL_PREFIX,
         help=f"path prefix written into map_image (default: {DEFAULT_URL_PREFIX}); "
@@ -1461,6 +1519,7 @@ def main(argv: list = None) -> int:
         now=args.now,
         enrich_limit=args.enrich_limit,
         poster_limit=args.poster_limit,
+        retry_posters=args.retry_posters,
         url_prefix=args.url_prefix,
         dry_run=args.dry_run,
     )

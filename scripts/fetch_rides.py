@@ -32,7 +32,7 @@ import sys
 from collections.abc import Callable
 from datetime import date, datetime, timezone
 from pathlib import Path
-from urllib.parse import parse_qs, unquote_plus, urlsplit
+from urllib.parse import parse_qs, quote, unquote, unquote_plus, urlsplit
 
 import requests
 from icalendar import Calendar
@@ -90,6 +90,32 @@ NEXT_DATA_RE = re.compile(
 FIREBASE_IMAGE_URL_RE = re.compile(
     r"https://firebasestorage\.googleapis\.com/[^\"'\s<>}]+", re.IGNORECASE
 )
+# …but that URL is Partiful's *internal* record, not what Partiful serves. Its
+# own pages load every cover through an imgix CDN (the <img srcSet> and the
+# og:image both point there); the Firebase URL only survives inside
+# __NEXT_DATA__. It carries a per-object Firebase download token, and when the
+# owner rotates that token the object stays readable through imgix while the
+# tokened URL starts answering 403 — "permission denied", not "not found".
+# Two covers in this group's own feed were already in that state when this was
+# written (2026-11-03): both 403 on Firebase, both 200 on imgix, as were all 32
+# Firebase-backed covers in events.json + events-past.json. So the scrape
+# stores the CDN twin: no token to expire, and imgix already shrinks what are
+# 0.1-3.5 MB PNG originals (one measured 2.77 MB -> 93 KB).
+PARTIFUL_IMGIX_HOST = "partiful.imgix.net"
+PARTIFUL_IMGIX_URL = f"https://{PARTIFUL_IMGIX_HOST}/"
+FIREBASE_STORAGE_HOST = "firebasestorage.googleapis.com"
+# Only this bucket sits behind that CDN. Another app's Firebase URL has no
+# imgix source to rewrite to, so it is left exactly as it was found.
+PARTIFUL_STORAGE_BUCKET = "getpartiful.appspot.com"
+# Where Partiful files what a user uploaded, in both spellings:
+# …/o/external%2Fuser%2F<uid>%2F<object> on Firebase, and
+# …imgix.net/external/user/<uid>/<object> on the CDN.
+# All 32 of this group's covers sit under it. It is what tells an upload apart
+# from Partiful's own stock artwork once both are behind the same CDN host —
+# see sync.mirrorable, which may only copy the first kind.
+PARTIFUL_UPLOAD_PREFIX = "external/user/"
+# /v0/b/<bucket>/o/<url-encoded object path>
+FIREBASE_OBJECT_RE = re.compile(r"^/v0/b/(?P<bucket>[^/]+)/o/(?P<object>.+)$")
 
 # RSVP links sit in DESCRIPTION in one of three phrasings — "RSVP: <url>",
 # "RSVP at <url>", or "View this event on Partiful at <url>" — and are
@@ -304,21 +330,58 @@ def _first_image_url(text: str) -> str | None:
     return match.group(0) if match else None
 
 
+def cdn_image_url(url: object) -> str | None:
+    """A Partiful cover URL as the CDN Partiful itself serves it.
+
+    ``firebasestorage.googleapis.com/v0/b/<bucket>/o/<encoded object path>``
+    becomes ``partiful.imgix.net/<object path>`` — the same bytes, with no
+    download token to be revoked out from under us. See the comment above
+    ``PARTIFUL_IMGIX_HOST`` for why that matters.
+
+    Total and non-judgemental: anything that is not a Partiful-bucket Firebase
+    URL (a Giphy GIF, Partiful's stock artwork, a hand-written
+    ``ride_images.json`` entry, another app's bucket) comes back unchanged, so
+    this is safe to apply to every cover URL there is. A non-string is None,
+    which is also what "this ride has no photo" already looks like.
+    """
+    if not isinstance(url, str):
+        return None
+    parts = urlsplit(url.strip())
+    if parts.scheme.lower() not in ("http", "https"):
+        return url
+    host = parts.netloc.rsplit("@", 1)[-1].split(":")[0].lower()
+    if host != FIREBASE_STORAGE_HOST:
+        return url
+    match = FIREBASE_OBJECT_RE.match(parts.path)
+    if match is None or match.group("bucket").lower() != PARTIFUL_STORAGE_BUCKET:
+        return url
+    # The object path is percent-encoded in the Firebase URL ("a%2Fb") and
+    # plain in the imgix one ("a/b"); re-quote so a space or an accent in a
+    # filename still produces a valid URL.
+    obj = unquote(match.group("object"))
+    if not obj:
+        return url
+    return PARTIFUL_IMGIX_URL + quote(obj, safe="/")
+
+
 def _extract_event_image(html: str, event: dict | None = None) -> str | None:
     """The event's cover image URL from its public Partiful event page.
 
     Structured path first (__NEXT_DATA__.props.pageProps.event.image), then a
     raw regex for a Firebase Storage URL anywhere in the page. Pass `event`
     when the caller has already parsed the page's __NEXT_DATA__, so the page
-    is not parsed a second time just to read its image.
+    is not parsed a second time just to read its image. Either way the result
+    goes through ``cdn_image_url`` — what the page *records* is a tokened
+    Firebase URL, what the page *loads* is the imgix twin, and we want the
+    second one.
     """
     if event is None:
         event = _event_from_page(html)
     if event is not None:
         image = _image_url_value(event.get("image"))
         if image:
-            return image
-    return _first_image_url(html)
+            return cdn_image_url(image)
+    return cdn_image_url(_first_image_url(html))
 
 
 # --- Google Maps route links -------------------------------------------------
@@ -757,7 +820,8 @@ def parse_events(
     ride's start — see `is_upcoming`. Either way the list is sorted by start.
 
     `images` is the optional UID → image-URL sidecar; each ride carries its
-    photo URL as `image` (None when absent). `excluded` is the set of UIDs to
+    photo URL as `image` (None when absent, and normalised by
+    `cdn_image_url`). `excluded` is the set of UIDs to
     leave out of either pass (see `load_excluded_events`); pass a set as
     `skipped` and the ones this pass actually left out are added to it, which
     is all the sync's run report needs to say how many the sidecar caught.
@@ -810,7 +874,14 @@ def parse_events(
                 "location_url": location_url,
                 "description": _clean_description(description),
                 "rsvp_url": extract_rsvp_url(description) or derive_partiful_url(uid),
-                "image": images.get(uid),
+                # Through the CDN rewrite like any other cover: a sidecar
+                # entry is a hand-written override of *which picture*, not a
+                # request for a particular URL spelling, and the one shape
+                # somebody is likely to paste from an old events-past.json is
+                # the tokened Firebase URL that can be revoked. Anything the
+                # rewrite doesn't recognise — which is almost everything a
+                # person would paste — is kept verbatim.
+                "image": cdn_image_url(images.get(uid)),
                 # None until enrichment looks at the event page; a list (even
                 # an empty one) means "we checked". archive_events relies on
                 # that difference so a re-export can't erase known routes.
