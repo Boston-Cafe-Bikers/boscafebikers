@@ -249,21 +249,23 @@
       overflow: hidden;
     }
 
+    /* Both banners — the drawn route map and the host's cover photo — are
+       shown whole. The image keeps its own shape: full width when it fits,
+       otherwise shrunk to the height cap and centred on the card, so a tall
+       one is never letterboxed inside a full-width frame (latte bars either
+       side) and never cropped.
+
+       A cropped map loses its endpoints. A cropped cover loses more than
+       that: the host uploads whatever they made, and measured on 2026-11-03
+       the five upcoming covers ran from 0.77:1 (a portrait flyer) to 1.74:1
+       (a wide banner). At the card's 604px every one of them overflowed the
+       old 220px cap, so `object-fit: cover` was discarding 37-72% of each —
+       on the flyers, the half with the words on it. 420px is the shortest
+       cap that renders the wide end full-width and leaves a portrait flyer
+       legible; a phone is narrower than it is tall here, so at 380px even a
+       0.8:1 cover fits inside it uncropped. */
     .ride-img {
       display: block;
-      width: 100%;
-      height: auto;
-      max-height: 220px;
-      object-fit: cover;
-    }
-
-    /* The route map is drawn to fit its own route, so show it whole rather
-       than cropping it like a photo — a cropped map loses its endpoints. It
-       has a basemap edge to edge, so instead of letterboxing a tall map
-       inside a full-width frame (latte bars either side of the tiles) the
-       image keeps its own shape: full width when it fits, otherwise shrunk to
-       the height cap and centred on the card. */
-    .ride-img.is-map {
       width: auto;
       max-width: 100%;
       max-height: 420px;
@@ -528,8 +530,11 @@
        (Backlog 9). The modal only needs a preview, so cap it lower;
        mobile gets an even smaller cap since the dialog width (and so the
        map's rendered height, which follows its own aspect ratio) is
-       already narrower. Restored to 240px at ≥560px below. */
-    .modal .ride-img.is-map {
+       already narrower. Restored to 240px at ≥560px below. Applies to a
+       cover photo too: the dialog is a detail view with a sticky CTA at its
+       foot, so the banner has to leave room for the thing it is a detail
+       of. */
+    .modal .ride-img {
       max-height: 200px;
     }
 
@@ -694,9 +699,9 @@
         flex: 0 1 auto;
       }
 
-      /* Wider dialog at ≥560px has room for a slightly taller map preview
+      /* Wider dialog at ≥560px has room for a slightly taller banner
          (Backlog 9); still well under the card's 420px full-size cap. */
-      .modal .ride-img.is-map {
+      .modal .ride-img {
         max-height: 240px;
       }
 
