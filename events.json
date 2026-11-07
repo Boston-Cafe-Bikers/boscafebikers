@@ -1,28 +1,7 @@
 {
-  "updated_at": "2026-11-03T15:08:48.530359-05:00",
-  "count": 6,
+  "updated_at": "2026-11-07T16:23:19.015472-05:00",
+  "count": 5,
   "events": [
-    {
-      "uid": "87gRkZeeUFnAuxCf19ko",
-      "title": "Fueled by Mini Croissants",
-      "start": "2026-11-07T10:00:00-05:00",
-      "end": null,
-      "date_display": "Saturday, November 7",
-      "time_display": "10:00 am",
-      "location": "Michette on Webster, 305 Webster Ave, Cambridge, MA",
-      "location_hidden": false,
-      "location_url": null,
-      "description": "Starting near Coolidge Corner and swinging up and over to Union Square, we’ll get over to Michette to welcome their second location to Somerville! All Cafe Bikers will get some special treats and 10% off your order for riding with us! 🥐🥐🥐",
-      "rsvp_url": "https://partiful.com/e/87gRkZeeUFnAuxCf19ko",
-      "image": "https://partiful.imgix.net/external/user/Hs47uq5mucZyXLBJZCda/xFCbK6pQgrW6MlunyGaBi",
-      "routes": [],
-      "hosted_by_group": true,
-      "grace_until": "2026-11-07T11:00:00-05:00",
-      "place_name": "Michette on Webster",
-      "address": "305 Webster Ave, Cambridge, MA",
-      "year": "2026",
-      "poster": "posters/87gRkZeeUFnAuxCf19ko.jpg"
-    },
     {
       "uid": "1YzKpbUsKjvTWL0LhMtx",
       "title": "Elm-Beacon Connector",
