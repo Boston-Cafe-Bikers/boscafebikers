@@ -1,27 +1,7 @@
 {
-  "updated_at": "2026-11-14T16:55:53.679214-05:00",
-  "count": 4,
+  "updated_at": "2026-11-15T17:26:10.644003-05:00",
+  "count": 3,
   "events": [
-    {
-      "uid": "IboWQuNbHt9ZeKFBKcJl",
-      "title": "This little figgy rode all the way to Somerville",
-      "start": "2026-11-15T10:00:00-05:00",
-      "end": null,
-      "date_display": "Sunday, November 15",
-      "time_display": "10:00 am",
-      "location": "Arsenal Yards, Watertown, 130 Arsenal St, Watertown, MA",
-      "location_hidden": false,
-      "location_url": null,
-      "description": "Come check out the beautiful Watertown-Cambridge Greenway and meet new friends on this ride to 3 Little Figs in Somerville!",
-      "rsvp_url": "https://partiful.com/e/IboWQuNbHt9ZeKFBKcJl",
-      "image": "https://media2.giphy.com/media/7DyrGhfDMsMbm/giphy.gif?cid=c00e53c6uxrqgek5sq23fsufigrkd0y55hpktjerquhhe3h6&ep=v1_gifs_search&rid=giphy.gif&ct=g",
-      "routes": [],
-      "hosted_by_group": true,
-      "grace_until": "2026-11-15T11:00:00-05:00",
-      "place_name": "Arsenal Yards",
-      "address": "Watertown, 130 Arsenal St, Watertown, MA",
-      "year": "2026"
-    },
     {
       "uid": "S8mvZKn72jgFCGbGtvol",
       "title": "Butternut Bake House Ride",
