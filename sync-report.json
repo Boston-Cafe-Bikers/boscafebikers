@@ -1,19 +1,19 @@
 {
   "feed": {
-    "upcoming": 2,
-    "past": 39,
+    "upcoming": 1,
+    "past": 40,
     "excluded": 0,
     "unhosted": 0
   },
   "upcoming": {
-    "with_image": 2,
+    "with_image": 1,
     "with_route": 0,
     "routes": 0,
     "routes_measured": 0,
     "host_unknown": 0
   },
   "archive": {
-    "rides": 49,
+    "rides": 50,
     "never_checked": 0
   },
   "cafes": {
